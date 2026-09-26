@@ -52,6 +52,8 @@
 
 ## Установка
 
+Есть два способа: скачать готовый пакет из Releases (ниже) или [собрать и установить из репозитория](#из-репозитория-сборка-из-исходников).
+
 Готовые сборки лежат на странице **[Releases](https://github.com/Antongo22/pb_for_mac/releases/latest)**.
 Приложение самодостаточное (self-contained): устанавливать .NET не нужно.
 
@@ -129,13 +131,59 @@ cd PbForMac-linux-x64
 
 **Удаление:** `./install.sh --uninstall` из распакованной папки.
 
-### Из исходного кода
+### Из репозитория (сборка из исходников)
 
-Нужен [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0):
+Этот способ подойдёт, если нужна самая свежая версия из `main` или готовой сборки для вашей системы нет.
+Скрипты собирают самодостаточное приложение и устанавливают его так же, как пакеты из Releases.
+
+**1. Установите git и .NET 10 SDK**
+
+| Система | Команда |
+|---|---|
+| macOS | `xcode-select --install` (git) и `brew install --cask dotnet-sdk` — или [установщик .NET](https://dotnet.microsoft.com/download/dotnet/10.0) |
+| Windows | `winget install Git.Git Microsoft.DotNet.SDK.10` |
+| Linux | git из менеджера пакетов (`sudo apt install git`, `sudo dnf install git`, …) и .NET [по инструкции для вашего дистрибутива](https://learn.microsoft.com/dotnet/core/install/linux) |
+
+Для Linux есть и универсальный вариант без root: `curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 10.0`
+(затем добавьте `~/.dotnet` в `PATH`). Проверка: `dotnet --version` должна показать `10.x`.
+
+**2. Скачайте репозиторий**
 
 ```bash
 git clone https://github.com/Antongo22/pb_for_mac.git
 cd pb_for_mac
+```
+
+**3. Соберите и установите**
+
+macOS и Linux:
+
+```bash
+./scripts/install.sh
+```
+
+- **macOS:** `PbForMac.app` копируется в «Программы» (или в `~/Applications`, если нет прав записи).
+  Приложение, собранное на вашем Mac, не блокируется Gatekeeper, поэтому шаги первого запуска выше не нужны.
+- **Linux:** установка в `~/.local`, как у `install.sh` из пакета: пункт в меню приложений, команда `pbformac`, файлы `.pbm`.
+  Если приложение не запускается, установите [зависимости](#linux).
+
+Windows (PowerShell или командная строка, из папки репозитория):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\install.ps1
+```
+
+Добавьте `-DesktopShortcut`, чтобы создать ярлык на рабочем столе. Установка идёт так же, как у `install.cmd` из пакета:
+`%LOCALAPPDATA%\Programs\PbForMac`, ярлык в «Пуске», связь с `.pbm`, запись в «Параметры → Приложения».
+
+**Обновление:** `git pull`, затем снова запустите скрипт установки.
+
+**Удаление:** `./scripts/install.sh --uninstall` (macOS, Linux) или
+`powershell -ExecutionPolicy Bypass -File scripts\install.ps1 -Uninstall` (Windows).
+
+**Запуск без установки** (удобно при разработке):
+
+```bash
 dotnet run --project src/PbForMac
 ```
 
@@ -224,7 +272,7 @@ tests/PbForMac.Tests/   xUnit: импорт, типы, движки, модел�
 tools/SampleDataGenerator/  генератор демо-данных в samples/
 tools/Screenshots/          headless-скриншоты для README и иконка приложения
 samples/               демо-данные и отчёт demo.pbm
-scripts/               сборка пакетов (package.sh) и .app для macOS
+scripts/               установка из исходников (install.sh / install.ps1), сборка пакетов (package.sh) и .app
 packaging/             установщики для Windows (install.cmd/.ps1) и Linux (install.sh, .desktop)
 ```
 
