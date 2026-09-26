@@ -266,6 +266,54 @@ public abstract partial class VisualViewModel : ViewModelBase
 
     public void ClearCategory() => CategoryField = null;
 
+    /// <summary>Назначает поле в колодец категории (перетаскивание).</summary>
+    public void AssignFieldToCategory(string tableName, string columnName)
+    {
+        if (!ShowsCategory)
+            return;
+        if (!string.Equals(Table, tableName, StringComparison.OrdinalIgnoreCase))
+            Table = tableName;
+        CategoryField = ResolveFieldRef(tableName, columnName);
+    }
+
+    /// <summary>Добавляет/включает поле в колодец значений (перетаскивание).</summary>
+    public void AssignFieldToValues(string tableName, string columnName)
+    {
+        if (!ShowsValues)
+        {
+            AssignField(tableName, columnName);
+            return;
+        }
+        if (!string.Equals(Table, tableName, StringComparison.OrdinalIgnoreCase))
+            Table = tableName;
+        var fieldRef = ResolveFieldRef(tableName, columnName);
+        if (fieldRef is null)
+            return;
+        var option = ValueOptions.FirstOrDefault(o =>
+            string.Equals(o.Name, fieldRef, StringComparison.OrdinalIgnoreCase));
+        if (option is not null)
+        {
+            option.IsChecked = true;
+            return;
+        }
+        if (!Definition.ValueFields.Contains(fieldRef))
+        {
+            Definition.ValueFields.Add(fieldRef);
+            UpdateFieldOptions();
+            Refresh();
+        }
+    }
+
+    private string? ResolveFieldRef(string tableName, string columnName)
+    {
+        var table = GetTable();
+        if (table is null)
+            return null;
+        if (!string.Equals(table.TableName, tableName, StringComparison.OrdinalIgnoreCase))
+            return FieldRef.Format(tableName, columnName);
+        return Field(table, columnName) is not null ? columnName : FieldRef.Format(tableName, columnName);
+    }
+
     /// <summary>
     /// Назначает поле из панели «Поля»: категория, если пуста, иначе значение.
     /// При другой таблице — переключает визуал на неё.

@@ -22,7 +22,7 @@
         <StackPanel DockPanel.Dock="Top" Margin="14,14,14,8" Spacing="4">
           <TextBlock Classes="paneHeader" Text="Поля" Margin="0" />
           <TextBlock Classes="hint"
-                     Text="Клик по столбцу назначает его выбранному визуалу. Если визуал не выбран — создаётся гистограмма." />
+                     Text="Клик или перетаскивание в колодец справа. Без выбранного визуала клик создаёт гистограмму." />
         </StackPanel>
         <TextBlock DockPanel.Dock="Top" Classes="hint" Margin="14,0,14,8" IsVisible="{Binding !HasData}"
                    Text="Загрузите данные, чтобы увидеть таблицы и столбцы." />
@@ -44,14 +44,16 @@
                   <ItemsControl ItemsSource="{Binding Columns}" IsVisible="{Binding IsExpanded}" Margin="12,0,0,0">
                     <ItemsControl.ItemTemplate>
                       <DataTemplate x:DataType="vm:FieldColumnItem">
-                        <Button Classes="flat" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
-                                Padding="6,3" Command="{Binding Assign}" ToolTip.Tip="Назначить полю визуала">
+                        <Border Classes="flat" Padding="6,3" Cursor="Hand"
+                                Background="Transparent"
+                                PointerPressed="OnFieldPointerPressed"
+                                ToolTip.Tip="Клик — назначить; перетащите в колодец категории или значений">
                           <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="{Binding TypeGlyph}" Width="14" FontSize="11"
                                        Foreground="{DynamicResource SubtleTextBrush}" />
                             <TextBlock Text="{Binding Name}" FontSize="12" TextTrimming="CharacterEllipsis" />
                           </StackPanel>
-                        </Button>
+                        </Border>
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>
@@ -159,7 +161,7 @@
                     <TextBlock Grid.Column="1" Classes="hint" Text="{Binding KindLabel}" />
                   </Grid>
                   <TextBlock Classes="hint" Margin="0,0,0,6"
-                             Text="Выберите поля для осей и значений — как в Power BI Desktop." />
+                             Text="Перетащите поле из панели слева в колодец или выберите из списка." />
 
                   <TextBlock Classes="caption" Text="Заголовок" />
                   <TextBox Text="{Binding Title}" Watermark="{Binding AutoTitle}" />
@@ -169,10 +171,11 @@
 
                   <StackPanel IsVisible="{Binding ShowsCategory}" Margin="0,8,0,0">
                     <TextBlock Classes="caption" Text="{Binding CategoryCaption}" />
-                    <Border Classes="fieldWell">
+                    <Border Classes="fieldWell" Name="CategoryWell" Tag="category"
+                            DragDrop.AllowDrop="True">
                       <Grid ColumnDefinitions="*,Auto">
                         <ComboBox ItemsSource="{Binding CategoryOptions}" SelectedItem="{Binding CategoryField}"
-                                  PlaceholderText="Выберите поле" BorderThickness="0" Background="Transparent" />
+                                  PlaceholderText="Выберите поле или перетащите сюда" BorderThickness="0" Background="Transparent" />
                         <Button Grid.Column="1" Classes="icon" Margin="4,0,0,0" Command="{Binding ClearCategory}" ToolTip.Tip="Очистить">
                           <PathIcon Data="{StaticResource IconClose}" />
                         </Button>
@@ -187,7 +190,8 @@
 
                   <StackPanel IsVisible="{Binding ShowsValues}" Margin="0,8,0,0">
                     <TextBlock Classes="caption" Text="{Binding ValuesCaption}" />
-                    <Border Classes="fieldWell" MinHeight="72">
+                    <Border Classes="fieldWell" Name="ValuesWell" Tag="values" MinHeight="72"
+                            DragDrop.AllowDrop="True">
                       <ScrollViewer MaxHeight="190">
                         <ItemsControl ItemsSource="{Binding ValueOptions}">
                           <ItemsControl.ItemTemplate>
@@ -198,7 +202,7 @@
                         </ItemsControl>
                       </ScrollViewer>
                     </Border>
-                    <TextBlock Classes="hint" Margin="0,4,0,0" Text="Отметьте поля значений. Можно выбрать несколько." />
+                    <TextBlock Classes="hint" Margin="0,4,0,0" Text="Отметьте поля или перетащите сюда. Можно выбрать несколько." />
                   </StackPanel>
 
                   <StackPanel IsVisible="{Binding ShowsAggregation}">
