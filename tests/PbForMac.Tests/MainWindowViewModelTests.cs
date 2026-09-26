@@ -157,6 +157,39 @@ public class MainWindowViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task OpeningReport_OverLoadedData_AsksBeforeReplacing()
+    {
+        var reportPath = _files.PathOf("other.pbm");
+        ReportSerializer.Save(new Models.ReportDefinition(), reportPath);
+        var vm = CreateViewModel();
+        await vm.OpenPathAsync(_files.Write("current.csv", "a\n1\n"));
+
+        _dialogs.ConfirmResult = false;
+        await vm.OpenReportFileAsync(reportPath);
+        Assert.Equal(["current"], vm.Model.Tables.Select(t => t.TableName));
+        Assert.Null(vm.ReportPath);
+
+        _dialogs.ConfirmResult = true;
+        await vm.OpenReportFileAsync(reportPath);
+        Assert.Empty(vm.Model.Tables);
+        Assert.Equal(reportPath, vm.ReportPath);
+        Assert.Equal(2, _dialogs.ConfirmCount);
+    }
+
+    [Fact]
+    public async Task OpeningReport_IntoEmptyWindow_DoesNotAsk()
+    {
+        var reportPath = _files.PathOf("first.pbm");
+        ReportSerializer.Save(new Models.ReportDefinition(), reportPath);
+        var vm = CreateViewModel();
+
+        await vm.OpenReportFileAsync(reportPath);
+
+        Assert.Equal(0, _dialogs.ConfirmCount);
+        Assert.Equal(reportPath, vm.ReportPath);
+    }
+
+    [Fact]
     public async Task FolderWithOnlySubfolder_IsNotEmpty()
     {
         // Раньше папка «sales», где файлы лежат только в подпапке, считалась пустой.
@@ -284,6 +317,13 @@ public class MainWindowViewModelTests : IDisposable
             return Task.CompletedTask;
         }
 
-        public Task<bool> ConfirmAsync(string title, string message) => Task.FromResult(true);
+        public bool ConfirmResult { get; set; } = true;
+        public int ConfirmCount { get; private set; }
+
+        public Task<bool> ConfirmAsync(string title, string message)
+        {
+            ConfirmCount++;
+            return Task.FromResult(ConfirmResult);
+        }
     }
 }

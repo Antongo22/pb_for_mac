@@ -324,14 +324,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    /// <summary>Отчёт с данными или визуалами можно закрыть только после подтверждения.</summary>
+    private async Task<bool> ConfirmCloseCurrentAsync(string title, string action)
+    {
+        if (Model.Sources.Count == 0 && Report.IsEmpty)
+            return true;
+        return await _dialogs.ConfirmAsync(title,
+            $"{action} Текущий отчёт будет закрыт, несохранённые изменения будут потеряны. Продолжить?");
+    }
+
     [RelayCommand]
     private async Task NewReportAsync()
     {
-        if (Model.Sources.Count > 0 || !Report.IsEmpty)
-        {
-            if (!await _dialogs.ConfirmAsync("Новый отчёт", "Закрыть текущий отчёт? Несохранённые изменения будут потеряны."))
-                return;
-        }
+        if (!await ConfirmCloseCurrentAsync("Новый отчёт", "Создать новый отчёт?"))
+            return;
         Report.Clear();
         Model.Clear();
         ReportPath = null;
@@ -361,6 +367,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     public async Task OpenReportFileAsync(string path)
     {
+        if (!await ConfirmCloseCurrentAsync("Открыть отчёт", $"Открыть «{Path.GetFileNameWithoutExtension(path)}»?"))
+            return;
         try
         {
             IsBusy = true;

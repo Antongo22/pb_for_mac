@@ -112,9 +112,6 @@
           <Button Classes="tool" Command="{Binding ExportPngCommand}" ToolTip.Tip="Сохранить дашборд как изображение">
             <StackPanel><PathIcon Data="{StaticResource IconImage}" /><TextBlock Text="Экспорт PNG" /></StackPanel>
           </Button>
-          <Button Classes="tool" Command="{Binding OpenSampleCommand}" ToolTip.Tip="Открыть демонстрационный отчёт">
-            <StackPanel><PathIcon Data="{StaticResource IconReport}" /><TextBlock Text="Пример" /></StackPanel>
-          </Button>
         </StackPanel>
 
         <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="12">
