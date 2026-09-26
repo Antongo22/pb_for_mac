@@ -31,6 +31,7 @@ public partial class MainWindow : Window
         Add(Key.T, vm.ToggleThemeCommand, KeyModifiers.Shift);
         Add(Key.R, vm.RefreshCommand);
         Add(Key.E, vm.ExportPngCommand);
+        Add(Key.E, vm.ExportExcelCommand, KeyModifiers.Shift);
         Add(Key.D1, vm.ShowReportCommand);
         Add(Key.D2, vm.ShowDataCommand);
         Add(Key.D3, vm.ShowModelCommand);

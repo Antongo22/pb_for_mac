@@ -22,9 +22,6 @@
           <NativeMenuItemSeparator />
           <NativeMenuItem Header="Сохранить" Command="{Binding SaveReportCommand}" Gesture="Meta+S" />
           <NativeMenuItem Header="Сохранить как…" Command="{Binding SaveReportAsCommand}" Gesture="Meta+Shift+S" />
-          <NativeMenuItemSeparator />
-          <NativeMenuItem Header="Экспорт дашборда в PNG…" Command="{Binding ExportPngCommand}" Gesture="Meta+E" />
-          <NativeMenuItem Header="Экспорт в Excel…" Command="{Binding ExportExcelCommand}" Gesture="Meta+Shift+E" />
         </NativeMenu>
       </NativeMenuItem>
       <NativeMenuItem Header="Данные">
@@ -53,14 +50,24 @@
           </NativeMenuItem>
         </NativeMenu>
       </NativeMenuItem>
+      <NativeMenuItem Header="Отчёт">
+        <NativeMenu>
+          <NativeMenuItem Header="Экспорт дашборда в PNG…" Command="{Binding ExportPngCommand}" Gesture="Meta+E" />
+          <NativeMenuItem Header="Экспорт в Excel…" Command="{Binding ExportExcelCommand}" Gesture="Meta+Shift+E" />
+          <NativeMenuItemSeparator />
+          <NativeMenuItem Header="Сбросить срезы" Command="{Binding ResetReportSlicersCommand}" />
+          <NativeMenuItem Header="Сохранить закладку…" Command="{Binding AddReportBookmarkCommand}" />
+        </NativeMenu>
+      </NativeMenuItem>
     </NativeMenu>
   </NativeMenu.Menu>
 
   <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="56,*">
 
-    <!-- Лента инструментов -->
-    <Border Grid.ColumnSpan="2" Background="{DynamicResource PanelBrush}"
-            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+    <!-- Лента внутри окна: Windows/Linux. На macOS — только системное меню сверху. -->
+    <Border x:Name="InWindowRibbon" Grid.ColumnSpan="2" Background="{DynamicResource PanelBrush}"
+            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1"
+            IsVisible="{Binding ShowInWindowRibbon}">
       <DockPanel>
         <Grid DockPanel.Dock="Top" ColumnDefinitions="56,*" Background="{DynamicResource WorkspaceBrush}">
           <Viewbox Width="20" Height="20" HorizontalAlignment="Center" Margin="0,6">

@@ -78,6 +78,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public bool IsDataPage => CurrentPage == Data;
     public bool IsModelPage => CurrentPage == Transform;
 
+    /// <summary>Лента внутри окна — на Windows/Linux; на macOS команды только в системном меню.</summary>
+    public bool ShowInWindowRibbon { get; } = !OperatingSystem.IsMacOS();
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsRibbonFile), nameof(IsRibbonData), nameof(IsRibbonView), nameof(IsRibbonReport))]
     private string _ribbonTab = "Файл";

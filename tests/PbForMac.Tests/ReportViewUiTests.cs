@@ -68,20 +68,31 @@ public class ReportViewUiTests
     }
 
     [AvaloniaFact]
-    public void Toolbar_HasRibbonTabs_AndNoSampleButton()
+    public void Toolbar_RibbonVisibleOnlyOffMac()
     {
         var window = new MainWindow();
-        window.DataContext = new MainWindowViewModel(new NoDialogs(), new ThemeService(Application.Current!), new AppSettings());
+        var vm = new MainWindowViewModel(new NoDialogs(), new ThemeService(Application.Current!), new AppSettings());
+        window.DataContext = vm;
         window.Show();
         Dispatcher.UIThread.RunJobs();
 
-        var texts = window.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text).ToList();
-        Assert.Contains("Файл", texts);
-        Assert.Contains("Данные", texts);
-        Assert.Contains("Вид", texts);
-        Assert.Contains("Отчёт", texts);
-        Assert.Contains("Получить данные", texts);
+        var ribbon = Assert.IsType<Border>(window.FindControl<Border>("InWindowRibbon"));
+        Assert.Equal(vm.ShowInWindowRibbon, ribbon.IsVisible);
+        Assert.Equal(!OperatingSystem.IsMacOS(), vm.ShowInWindowRibbon);
+
+        var texts = window.GetVisualDescendants().OfType<TextBlock>()
+            .Where(t => t.IsEffectivelyVisible)
+            .Select(t => t.Text)
+            .ToList();
         Assert.DoesNotContain("Пример", texts);
+        if (vm.ShowInWindowRibbon)
+        {
+            Assert.Contains("Файл", texts);
+            Assert.Contains("Данные", texts);
+            Assert.Contains("Вид", texts);
+            Assert.Contains("Отчёт", texts);
+            Assert.Contains("Получить данные", texts);
+        }
     }
 
     private sealed class NoDialogs : IDialogService
