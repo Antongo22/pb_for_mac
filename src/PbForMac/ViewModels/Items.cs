@@ -10,8 +10,8 @@ public sealed record TableItem(string Name, string Description)
     public override string ToString() => Name;
 }
 
-/// <summary>Столбец таблицы с типом.</summary>
-public sealed class ColumnItem(string name, ColumnType type, Action<ColumnItem>? insert = null)
+/// <summary>Столбец таблицы с типом; флажок — для пакетных операций.</summary>
+public sealed partial class ColumnItem(string name, ColumnType type, Action<ColumnItem>? insert = null) : ObservableObject
 {
     public string Name { get; } = name;
     public ColumnType Type { get; } = type;
@@ -24,6 +24,9 @@ public sealed class ColumnItem(string name, ColumnType type, Action<ColumnItem>?
         ColumnType.Boolean => "✓",
         _ => "A",
     };
+
+    [ObservableProperty]
+    private bool _isChecked;
 
     /// <summary>Вставляет ссылку на столбец в редактируемое выражение.</summary>
     public void Insert() => insert?.Invoke(this);

@@ -94,6 +94,36 @@ public class TransformTests
     }
 
     [Fact]
+    public void RemoveKeepAndMoveColumns()
+    {
+        var tables = Tables();
+        var table = tables[0];
+
+        TransformEngine.Apply(tables, new MoveColumnStep { Table = "Продажи", Column = "Цена", NewOrdinal = 0 });
+        Assert.Equal(0, table.Columns["Цена"]!.Ordinal);
+
+        TransformEngine.Apply(tables, new KeepColumnsStep { Table = "Продажи", Columns = ["Цена", "Кол-во", "Регион"] });
+        Assert.Equal(3, table.Columns.Count);
+        Assert.Equal(0, table.Columns["Цена"]!.Ordinal);
+        Assert.Equal(1, table.Columns["Кол-во"]!.Ordinal);
+
+        TransformEngine.Apply(tables, new RemoveColumnsStep { Table = "Продажи", Columns = ["Цена", "Кол-во"] });
+        Assert.Equal(["Регион"], table.Columns.Cast<DataColumn>().Select(c => c.ColumnName).ToArray());
+    }
+
+    [Fact]
+    public void RemoveColumns_RejectsRemovingAll()
+    {
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            TransformEngine.Apply(Tables(), new RemoveColumnsStep
+            {
+                Table = "Продажи",
+                Columns = Tables()[0].Columns.Cast<DataColumn>().Select(c => c.ColumnName).ToList(),
+            }));
+        Assert.Contains("все столбцы", error.Message);
+    }
+
+    [Fact]
     public void ReportSerializer_RoundTripsPolymorphicSteps()
     {
         var report = new ReportDefinition
@@ -103,6 +133,9 @@ public class TransformTests
             [
                 new CalculatedColumnStep { Table = "A", Name = "S", Expression = "[x] * 2" },
                 new FilterRowsStep { Table = "A", Filter = new FilterDefinition { Column = "x", Operator = FilterOperator.In, Values = ["1"] } },
+                new RemoveColumnsStep { Table = "A", Columns = ["a", "b"] },
+                new KeepColumnsStep { Table = "A", Columns = ["x", "S"] },
+                new MoveColumnStep { Table = "A", Column = "x", NewOrdinal = 0 },
             ],
             Visuals = [new VisualDefinition { Kind = VisualKind.Pie, Table = "A", ValueFields = ["x"] }],
         };
@@ -111,8 +144,14 @@ public class TransformTests
         var restored = ReportSerializer.Deserialize(json);
 
         Assert.Contains("\"calculated\"", json);
+        Assert.Contains("\"removeColumns\"", json);
+        Assert.Contains("\"keepColumns\"", json);
+        Assert.Contains("\"moveColumn\"", json);
         Assert.IsType<CalculatedColumnStep>(restored.Steps[0]);
         Assert.Equal(["1"], ((FilterRowsStep)restored.Steps[1]).Filter.Values);
+        Assert.Equal(["a", "b"], ((RemoveColumnsStep)restored.Steps[2]).Columns);
+        Assert.Equal(["x", "S"], ((KeepColumnsStep)restored.Steps[3]).Columns);
+        Assert.Equal(0, ((MoveColumnStep)restored.Steps[4]).NewOrdinal);
         Assert.Equal(VisualKind.Pie, restored.Visuals[0].Kind);
     }
 }

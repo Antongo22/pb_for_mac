@@ -26,6 +26,18 @@ public static class TransformEngine
                 table.Columns.Remove(s.Column);
                 break;
 
+            case RemoveColumnsStep s:
+                RemoveColumns(table, s.Columns);
+                break;
+
+            case KeepColumnsStep s:
+                KeepColumns(table, s.Columns);
+                break;
+
+            case MoveColumnStep s:
+                MoveColumn(table, s.Column, s.NewOrdinal);
+                break;
+
             case ChangeTypeStep s:
                 ChangeType(table, s.Column, s.TargetType);
                 break;
@@ -63,6 +75,40 @@ public static class TransformEngine
         }
 
         table.AcceptChanges();
+    }
+
+    public static void RemoveColumns(DataTable table, IReadOnlyList<string> columns)
+    {
+        if (columns.Count == 0)
+            throw new InvalidOperationException("Выберите хотя бы один столбец для удаления.");
+        foreach (var name in columns)
+            RequireColumn(table, name);
+        if (columns.Count >= table.Columns.Count)
+            throw new InvalidOperationException("Нельзя удалить все столбцы таблицы.");
+        foreach (var name in columns)
+            table.Columns.Remove(name);
+    }
+
+    public static void KeepColumns(DataTable table, IReadOnlyList<string> columns)
+    {
+        if (columns.Count == 0)
+            throw new InvalidOperationException("Выберите хотя бы один столбец, который нужно оставить.");
+        foreach (var name in columns)
+            RequireColumn(table, name);
+        var keep = new HashSet<string>(columns, StringComparer.OrdinalIgnoreCase);
+        foreach (var name in table.Columns.Cast<DataColumn>().Select(c => c.ColumnName).Where(n => !keep.Contains(n)).ToList())
+            table.Columns.Remove(name);
+        // Порядок как в списке «оставить».
+        for (var i = 0; i < columns.Count; i++)
+            table.Columns[columns[i]]!.SetOrdinal(i);
+    }
+
+    public static void MoveColumn(DataTable table, string columnName, int newOrdinal)
+    {
+        var column = RequireColumn(table, columnName);
+        if (newOrdinal < 0 || newOrdinal >= table.Columns.Count)
+            throw new InvalidOperationException($"Позиция столбца должна быть от 1 до {table.Columns.Count}.");
+        column.SetOrdinal(newOrdinal);
     }
 
     public static void ChangeType(DataTable table, string columnName, ColumnType type)

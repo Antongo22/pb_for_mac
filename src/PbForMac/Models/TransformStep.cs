@@ -9,6 +9,9 @@ namespace PbForMac.Models;
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$step")]
 [JsonDerivedType(typeof(RenameColumnStep), "rename")]
 [JsonDerivedType(typeof(RemoveColumnStep), "remove")]
+[JsonDerivedType(typeof(RemoveColumnsStep), "removeColumns")]
+[JsonDerivedType(typeof(KeepColumnsStep), "keepColumns")]
+[JsonDerivedType(typeof(MoveColumnStep), "moveColumn")]
 [JsonDerivedType(typeof(ChangeTypeStep), "changeType")]
 [JsonDerivedType(typeof(CalculatedColumnStep), "calculated")]
 [JsonDerivedType(typeof(FilterRowsStep), "filter")]
@@ -34,6 +37,32 @@ public sealed class RemoveColumnStep : TransformStep
 {
     public string Column { get; set; } = "";
     public override string Description => $"Удалён столбец «{Column}»";
+}
+
+/// <summary>Удаляет несколько столбцов одним шагом.</summary>
+public sealed class RemoveColumnsStep : TransformStep
+{
+    public List<string> Columns { get; set; } = [];
+    public override string Description =>
+        Columns.Count == 1
+            ? $"Удалён столбец «{Columns[0]}»"
+            : $"Удалены столбцы ({Columns.Count}): {string.Join(", ", Columns.Select(c => $"«{c}»"))}";
+}
+
+/// <summary>Оставляет только перечисленные столбцы (остальные удаляются).</summary>
+public sealed class KeepColumnsStep : TransformStep
+{
+    public List<string> Columns { get; set; } = [];
+    public override string Description =>
+        $"Оставлены столбцы ({Columns.Count}): {string.Join(", ", Columns.Select(c => $"«{c}»"))}";
+}
+
+/// <summary>Перемещает столбец на новую позицию (0 — первый).</summary>
+public sealed class MoveColumnStep : TransformStep
+{
+    public string Column { get; set; } = "";
+    public int NewOrdinal { get; set; }
+    public override string Description => $"Столбец «{Column}» перемещён на позицию {NewOrdinal + 1}";
 }
 
 public sealed class ChangeTypeStep : TransformStep
