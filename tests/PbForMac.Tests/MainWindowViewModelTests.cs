@@ -80,6 +80,30 @@ public class MainWindowViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task ImportingSecondTable_WithOtherColumns_UpdatesProfile()
+    {
+        // Регрессия: профиль столбца считался по строкам предыдущей таблицы и падал с ArgumentException.
+        var first = _files.Write("price.csv", "ID_PRODUCT,Price\n1,1.5\n2,2.5\n");
+        var second = _files.Write("sellers.csv", "ID_OUTLET,Retail Chain\n1,DailyMart\n");
+        var vm = CreateViewModel();
+        await vm.OpenPathAsync(first);
+        vm.Data.ProfileColumn = "Price";
+        vm.Data.FilterColumn = "Price";
+        vm.Data.FilterValue = "2";
+        vm.Data.AddFilterCommand.Execute(null);
+
+        await vm.OpenPathAsync(second);
+
+        Assert.Equal("sellers", vm.Data.SelectedTable?.Name);
+        Assert.Equal("ID_OUTLET", vm.Data.ProfileColumn);
+        Assert.Contains(vm.Data.Profile, p => p.Label == "Строк" && p.Value == "1");
+        Assert.Empty(vm.Data.Filters);
+
+        vm.Data.SelectTable("price");
+        Assert.Contains(vm.Data.Profile, p => p.Label == "Строк" && p.Value == "2");
+    }
+
+    [Fact]
     public void Theme_ToggleSwitchesAndPersists()
     {
         var vm = CreateViewModel();

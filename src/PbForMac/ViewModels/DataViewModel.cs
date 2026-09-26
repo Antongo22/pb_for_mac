@@ -93,17 +93,19 @@ public sealed partial class DataViewModel : ViewModelBase
     private void LoadTable()
     {
         var table = CurrentTable;
+        // Строки предыдущей таблицы больше не актуальны: профиль и фильтры пересчитываются по новой.
+        _visibleRows = [];
         var columns = table?.Columns.Cast<DataColumn>().Select(c => c.ColumnName).ToList() ?? [];
         if (!columns.SequenceEqual(Columns))
         {
             Columns.Clear();
             foreach (var column in columns)
                 Columns.Add(column);
-            // Фильтры по отсутствующим столбцам больше не применимы.
-            foreach (var filter in Filters.Where(f => !columns.Contains(f.Definition.Column)).ToList())
-                Filters.Remove(filter);
-            OnPropertyChanged(nameof(HasFilters));
         }
+        // Быстрые фильтры относятся к конкретной таблице и её столбцам.
+        foreach (var filter in Filters.Where(f => f.Definition.Table != table?.TableName || !columns.Contains(f.Definition.Column)).ToList())
+            Filters.Remove(filter);
+        OnPropertyChanged(nameof(HasFilters));
         if (FilterColumn is null || !Columns.Contains(FilterColumn))
             FilterColumn = Columns.FirstOrDefault();
         if (ProfileColumn is null || !Columns.Contains(ProfileColumn))
@@ -155,7 +157,7 @@ public sealed partial class DataViewModel : ViewModelBase
         Profile.Clear();
         var table = CurrentTable;
         var column = ProfileColumn is null ? null : table?.Columns[ProfileColumn];
-        if (column is null)
+        if (column is null || (_visibleRows.Count > 0 && _visibleRows[0].Table != table))
             return;
 
         var values = _visibleRows.Select(r => r[column]).ToList();
