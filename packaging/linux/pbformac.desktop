@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=PbForMac
+GenericName=Data analysis
+GenericName[ru]=Анализ данных
+Comment=Dashboards and reports from CSV, Excel, JSON, XML and SQLite
+Comment[ru]=Дашборды и отчёты по данным из CSV, Excel, JSON, XML и SQLite
+Exec=@EXEC@ %f
+Icon=@ICON@
+Terminal=false
+Categories=Office;Spreadsheet;DataVisualization;
+MimeType=application/x-pbformac-report;
+StartupWMClass=PbForMac
