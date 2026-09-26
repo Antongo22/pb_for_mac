@@ -130,6 +130,13 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
     [ObservableProperty]
     private string? _groupTableName;
 
+    // Append
+    [ObservableProperty]
+    private string? _appendOtherTable;
+
+    [ObservableProperty]
+    private string? _appendNewTable;
+
     // Связи
     public ObservableCollection<RelationshipItemViewModel> Relationships { get; } = [];
     public ObservableCollection<string> RelationshipFromColumns { get; } = [];
@@ -198,6 +205,8 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
             RelationshipFromTable = Tables.FirstOrDefault();
         if (RelationshipToTable is null || !Tables.Contains(RelationshipToTable))
             RelationshipToTable = Tables.FirstOrDefault(t => t != RelationshipFromTable) ?? Tables.FirstOrDefault();
+        if (AppendOtherTable is null || !Tables.Contains(AppendOtherTable) || AppendOtherTable == SelectedTable)
+            AppendOtherTable = Tables.FirstOrDefault(t => t != SelectedTable) ?? Tables.FirstOrDefault();
         FillColumns(RelationshipFromTable, RelationshipFromColumns);
         FillColumns(RelationshipToTable, RelationshipToColumns);
     }
@@ -616,6 +625,31 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
         if (SelectedTable is null)
             return;
         await _columns.RemoveBlankRowsAsync(SelectedTable);
+    }
+
+    [RelayCommand]
+    private async Task AppendTableAsync()
+    {
+        if (SelectedTable is null || AppendOtherTable is null)
+        {
+            Error = "Выберите текущую таблицу и таблицу для добавления строк.";
+            return;
+        }
+        if (string.Equals(SelectedTable, AppendOtherTable, StringComparison.OrdinalIgnoreCase))
+        {
+            Error = "Выберите другую таблицу для объединения.";
+            return;
+        }
+        Error = null;
+        if (await _columns.AppendTableAsync(SelectedTable, AppendOtherTable, AppendNewTable))
+        {
+            Info = string.IsNullOrWhiteSpace(AppendNewTable)
+                ? $"Добавлены строки из «{AppendOtherTable}»"
+                : $"Создана таблица «{AppendNewTable.Trim()}»";
+            if (!string.IsNullOrWhiteSpace(AppendNewTable))
+                SelectedTable = AppendNewTable.Trim();
+            AppendNewTable = null;
+        }
     }
 
     [RelayCommand]

@@ -227,6 +227,19 @@
             </StackPanel>
           </TabItem>
 
+          <TabItem Header="Объединить таблицы">
+            <StackPanel Spacing="8" MaxWidth="520" HorizontalAlignment="Left">
+              <TextBlock Classes="hint"
+                         Text="Добавить строки другой таблицы в текущую (Append). Столбцы сопоставляются по имени." />
+              <TextBlock Classes="caption" Text="Добавить строки из" />
+              <ComboBox ItemsSource="{Binding Tables}" SelectedItem="{Binding AppendOtherTable}" />
+              <TextBlock Classes="caption" Text="Новая таблица (необязательно)" />
+              <TextBox Text="{Binding AppendNewTable}"
+                       Watermark="Пусто — дописать в текущую таблицу" />
+              <Button Classes="accent" Content="Объединить" Command="{Binding AppendTableCommand}" />
+            </StackPanel>
+          </TabItem>
+
           <TabItem Header="Связи">
             <DockPanel>
               <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">

@@ -9,3 +9,12 @@ public enum ColumnType
     Date,
     Boolean,
 }
+
+/// <summary>Текстовое преобразование столбца (как в Power Query).</summary>
+public enum TextTransformKind
+{
+    Trim,
+    Upper,
+    Lower,
+    Clean, // убрать управляющие символы
+}

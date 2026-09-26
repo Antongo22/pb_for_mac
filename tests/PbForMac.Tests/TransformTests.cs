@@ -297,6 +297,47 @@ public class TransformTests
     }
 
     [Fact]
+    public void TextTransform_TrimAndCase()
+    {
+        var table = new DataTable("T");
+        table.Columns.Add("A", typeof(string));
+        table.Rows.Add("  Hi ");
+        table.Rows.Add("x");
+        var tables = new List<DataTable> { table };
+
+        TransformEngine.Apply(tables, new TextTransformStep { Table = "T", Column = "A", Kind = TextTransformKind.Trim });
+        Assert.Equal("Hi", tables[0].Rows[0]["A"]);
+
+        TransformEngine.Apply(tables, new TextTransformStep { Table = "T", Column = "A", Kind = TextTransformKind.Upper });
+        Assert.Equal("HI", tables[0].Rows[0]["A"]);
+        Assert.Equal("X", tables[0].Rows[1]["A"]);
+    }
+
+    [Fact]
+    public void AppendTable_InPlaceAndNewTable()
+    {
+        var a = new DataTable("A");
+        a.Columns.Add("x", typeof(string));
+        a.Rows.Add("1");
+        var b = new DataTable("B");
+        b.Columns.Add("x", typeof(string));
+        b.Columns.Add("y", typeof(string));
+        b.Rows.Add("2", "b");
+        var tables = new List<DataTable> { a, b };
+
+        TransformEngine.Apply(tables, new AppendTableStep { Table = "A", OtherTable = "B" });
+        Assert.Equal(2, tables[0].Rows.Count);
+        Assert.True(tables[0].Columns.Contains("y"));
+        Assert.Equal("2", tables[0].Rows[1]["x"]);
+        Assert.Equal("b", tables[0].Rows[1]["y"]);
+
+        TransformEngine.Apply(tables, new AppendTableStep { Table = "A", OtherTable = "B", NewTable = "C" });
+        Assert.Equal(3, tables.Count);
+        Assert.Equal("C", tables[2].TableName);
+        Assert.Equal(3, tables[2].Rows.Count); // клон A (2) + B (1)
+    }
+
+    [Fact]
     public void SortRows_OrdersAscendingAndDescending()
     {
         var tables = Tables();

@@ -137,6 +137,39 @@ public sealed class ColumnEditor(DataModel model, IDialogService dialogs)
         }
     }
 
+    public async Task<bool> TransformTextAsync(string table, string column, TextTransformKind kind)
+    {
+        try
+        {
+            model.AddStep(new TextTransformStep { Table = table, Column = column, Kind = kind });
+            return true;
+        }
+        catch (InvalidOperationException e)
+        {
+            await dialogs.ShowMessageAsync("Не удалось преобразовать текст", e.Message);
+            return false;
+        }
+    }
+
+    public async Task<bool> AppendTableAsync(string table, string otherTable, string? newTable)
+    {
+        try
+        {
+            model.AddStep(new AppendTableStep
+            {
+                Table = table,
+                OtherTable = otherTable,
+                NewTable = string.IsNullOrWhiteSpace(newTable) ? null : newTable.Trim(),
+            });
+            return true;
+        }
+        catch (InvalidOperationException e)
+        {
+            await dialogs.ShowMessageAsync("Не удалось объединить таблицы", e.Message);
+            return false;
+        }
+    }
+
     public async Task<bool> RemoveRowsAsync(string table, IReadOnlyList<DataRow> rows)
     {
         if (rows.Count == 0)

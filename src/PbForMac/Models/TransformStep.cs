@@ -24,6 +24,8 @@ namespace PbForMac.Models;
 [JsonDerivedType(typeof(RemoveBlankRowsStep), "removeBlankRows")]
 [JsonDerivedType(typeof(SplitColumnStep), "splitColumn")]
 [JsonDerivedType(typeof(SortRowsStep), "sortRows")]
+[JsonDerivedType(typeof(TextTransformStep), "textTransform")]
+[JsonDerivedType(typeof(AppendTableStep), "appendTable")]
 [JsonDerivedType(typeof(GroupByStep), "groupBy")]
 public abstract class TransformStep
 {
@@ -205,6 +207,38 @@ public sealed class SortRowsStep : TransformStep
     public override string Description => Descending
         ? $"Сортировка по «{Column}» ↓"
         : $"Сортировка по «{Column}» ↑";
+}
+
+/// <summary>Текстовое преобразование значений столбца.</summary>
+public sealed class TextTransformStep : TransformStep
+{
+    public string Column { get; set; } = "";
+    public TextTransformKind Kind { get; set; }
+
+    public override string Description => Kind switch
+    {
+        TextTransformKind.Trim => $"Обрезка пробелов «{Column}»",
+        TextTransformKind.Upper => $"ВЕРХНИЙ РЕГИСТР «{Column}»",
+        TextTransformKind.Lower => $"нижний регистр «{Column}»",
+        TextTransformKind.Clean => $"Очистка текста «{Column}»",
+        _ => $"Текст «{Column}»",
+    };
+}
+
+/// <summary>
+/// Добавляет строки другой таблицы в текущую (Append).
+/// Столбцы сопоставляются по имени; отсутствующие заполняются пустыми значениями.
+/// </summary>
+public sealed class AppendTableStep : TransformStep
+{
+    public string OtherTable { get; set; } = "";
+
+    /// <summary>Если задано — результат пишется в новую таблицу; иначе — в <see cref="TransformStep.Table"/>.</summary>
+    public string? NewTable { get; set; }
+
+    public override string Description => string.IsNullOrWhiteSpace(NewTable)
+        ? $"Добавлены строки из «{OtherTable}» в «{Table}»"
+        : $"Объединение «{Table}» + «{OtherTable}» → «{NewTable}»";
 }
 
 public sealed class AggregationSpec

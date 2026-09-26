@@ -259,6 +259,13 @@ public sealed class DataTableGrid : UserControl
         sortMenu.Items.Add(Item("По убыванию", () => editor.SortAsync(table, column, descending: true)));
         menu.Items.Add(sortMenu);
 
+        var textMenu = new MenuItem { Header = "Преобразование" };
+        textMenu.Items.Add(Item("Обрезать пробелы", () => editor.TransformTextAsync(table, column, TextTransformKind.Trim)));
+        textMenu.Items.Add(Item("ВЕРХНИЙ РЕГИСТР", () => editor.TransformTextAsync(table, column, TextTransformKind.Upper)));
+        textMenu.Items.Add(Item("нижний регистр", () => editor.TransformTextAsync(table, column, TextTransformKind.Lower)));
+        textMenu.Items.Add(Item("Очистить", () => editor.TransformTextAsync(table, column, TextTransformKind.Clean)));
+        menu.Items.Add(textMenu);
+
         var typeMenu = new MenuItem { Header = "Сменить тип" };
         foreach (var option in Labels.ColumnTypes)
         {

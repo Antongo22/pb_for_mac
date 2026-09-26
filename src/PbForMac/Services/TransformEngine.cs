@@ -94,6 +94,14 @@ public static class TransformEngine
                 SortRows(table, s.Column, s.Descending);
                 break;
 
+            case TextTransformStep s:
+                TransformText(table, s.Column, s.Kind);
+                break;
+
+            case AppendTableStep s:
+                AppendTable(tables, s);
+                break;
+
             case GroupByStep s:
                 if (string.IsNullOrWhiteSpace(s.NewTable))
                     throw new InvalidOperationException("Укажите имя новой таблицы.");
@@ -173,6 +181,74 @@ public static class TransformEngine
         table.Rows.Clear();
         foreach (DataRow row in clone.Rows)
             table.ImportRow(row);
+    }
+
+    public static void TransformText(DataTable table, string columnName, TextTransformKind kind)
+    {
+        var column = RequireColumn(table, columnName);
+        if (column.DataType != typeof(string) && TypeInference.FromClr(column.DataType) != ColumnType.Text)
+        {
+            // Приводим к тексту на месте, если ещё не текст.
+            ChangeType(table, columnName, ColumnType.Text);
+            column = RequireColumn(table, columnName);
+        }
+
+        foreach (DataRow row in table.Rows)
+        {
+            if (TypeInference.IsEmpty(row[column]))
+                continue;
+            var text = Convert.ToString(row[column]) ?? "";
+            row[column] = kind switch
+            {
+                TextTransformKind.Trim => text.Trim(),
+                TextTransformKind.Upper => text.ToUpperInvariant(),
+                TextTransformKind.Lower => text.ToLowerInvariant(),
+                TextTransformKind.Clean => new string(text.Where(c => !char.IsControl(c)).ToArray()),
+                _ => text,
+            };
+        }
+    }
+
+    /// <summary>Добавляет строки other в target; при NewTable создаёт новую таблицу.</summary>
+    public static void AppendTable(List<DataTable> tables, AppendTableStep step)
+    {
+        var target = Find(tables, step.Table);
+        var other = Find(tables, step.OtherTable);
+        if (ReferenceEquals(target, other))
+            throw new InvalidOperationException("Нельзя добавить таблицу саму в себя.");
+
+        DataTable destination;
+        if (!string.IsNullOrWhiteSpace(step.NewTable))
+        {
+            var name = step.NewTable.Trim();
+            if (tables.Any(t => string.Equals(t.TableName, name, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException($"Таблица «{name}» уже существует.");
+            destination = target.Clone();
+            destination.TableName = name;
+            foreach (DataRow row in target.Rows)
+                destination.ImportRow(row);
+            tables.Add(destination);
+        }
+        else
+            destination = target;
+
+        // Добавляем столбцы, которых нет в destination.
+        foreach (DataColumn column in other.Columns)
+        {
+            if (!destination.Columns.Contains(column.ColumnName))
+                destination.Columns.Add(column.ColumnName, column.DataType);
+        }
+
+        foreach (DataRow source in other.Rows)
+        {
+            var row = destination.NewRow();
+            foreach (DataColumn column in other.Columns)
+            {
+                var value = source[column];
+                row[column.ColumnName] = value == DBNull.Value ? DBNull.Value : value;
+            }
+            destination.Rows.Add(row);
+        }
     }
 
     public static void ChangeType(DataTable table, string columnName, ColumnType type)
