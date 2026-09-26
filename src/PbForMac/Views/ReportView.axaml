@@ -1,0 +1,208 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PbForMac.ViewModels"
+             xmlns:vis="using:PbForMac.ViewModels.Visuals"
+             xmlns:views="using:PbForMac.Views"
+             x:Class="PbForMac.Views.ReportView"
+             x:DataType="vm:ReportViewModel"
+             Focusable="True">
+
+  <Grid ColumnDefinitions="*,300">
+
+    <!-- Холст -->
+    <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                  Background="{DynamicResource WorkspaceBrush}">
+      <LayoutTransformControl Margin="24" HorizontalAlignment="Left" VerticalAlignment="Top">
+        <LayoutTransformControl.LayoutTransform>
+          <ScaleTransform ScaleX="{Binding Zoom}" ScaleY="{Binding Zoom}" />
+        </LayoutTransformControl.LayoutTransform>
+        <Panel>
+      <Border x:Name="Board"
+              Width="{Binding BoardWidth}" Height="{Binding BoardHeight}"
+              Background="{DynamicResource PageBrush}" BoxShadow="0 1 4 0 #33000000">
+        <Grid>
+          <ItemsControl ItemsSource="{Binding Visuals}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><Canvas /></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemContainerTheme>
+              <ControlTheme TargetType="ContentPresenter" x:DataType="vis:VisualViewModel">
+                <Setter Property="Canvas.Left" Value="{Binding X}" />
+                <Setter Property="Canvas.Top" Value="{Binding Y}" />
+              </ControlTheme>
+            </ItemsControl.ItemContainerTheme>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vis:VisualViewModel">
+                <views:VisualTileView />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12"
+                      MaxWidth="460">
+            <PathIcon Data="{StaticResource IconReport}" Width="56" Height="56" Foreground="{StaticResource BrandBrush}" />
+            <TextBlock Text="Создайте свой первый отчёт" FontSize="20" HorizontalAlignment="Center" />
+            <TextBlock Classes="hint" TextAlignment="Center" HorizontalAlignment="Center" IsVisible="{Binding !HasData}"
+                       Text="Загрузите данные из CSV, Excel, JSON, XML или SQLite либо откройте готовый пример." />
+            <TextBlock Classes="hint" TextAlignment="Center" HorizontalAlignment="Center" IsVisible="{Binding HasData}"
+                       Text="Выберите тип визуализации справа — поля подставятся автоматически, их можно поменять в панели «Поля»." />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" IsVisible="{Binding !HasData}">
+              <Button Classes="accent" Content="Получить данные" Command="{Binding ImportCommand}" />
+              <Button Content="Открыть пример" Command="{Binding OpenSampleCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+      </Border>
+        </Panel>
+      </LayoutTransformControl>
+    </ScrollViewer>
+
+    <!-- Масштаб -->
+    <Border HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,20,16" Padding="8,2"
+            CornerRadius="4" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <ToggleButton IsChecked="{Binding FitToWidth}" Content="По ширине" Padding="8,2" FontSize="12"
+                      ToolTip.Tip="Автоматически подгонять страницу под ширину окна" />
+        <Slider x:Name="ZoomSlider" Width="120" Minimum="0.3" Maximum="2" Value="{Binding Zoom}" VerticalAlignment="Center" />
+        <TextBlock Text="{Binding ZoomText}" Width="40" VerticalAlignment="Center" FontSize="12" />
+      </StackPanel>
+    </Border>
+
+    <!-- Правая панель -->
+    <Border Grid.Column="1" Classes="pane" BorderThickness="1,0,0,0" Padding="0">
+      <ScrollViewer>
+        <StackPanel Margin="14" Spacing="4">
+
+          <TextBlock Classes="paneHeader" Text="Визуализации" />
+          <ItemsControl ItemsSource="{Binding VisualKinds}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:VisualKindItem">
+                <Button Classes="visualKind" Command="{Binding Add}" ToolTip.Tip="{Binding Label}">
+                  <PathIcon Data="{Binding Icon}" />
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock Classes="hint" IsVisible="{Binding !HasSelection}" Text="Нажмите на тип, чтобы добавить визуал." />
+          <TextBlock Classes="hint" IsVisible="{Binding HasSelection}" Text="Визуал выбран: нажатие на тип изменит его вид." />
+
+          <!-- Поля выбранного визуала -->
+          <ContentControl Content="{Binding SelectedVisual}" IsVisible="{Binding HasSelection}" Margin="0,12,0,0">
+            <ContentControl.ContentTemplate>
+              <DataTemplate x:DataType="vis:VisualViewModel">
+                <StackPanel Spacing="2">
+                  <Rectangle Height="1" Fill="{DynamicResource DividerBrush}" Margin="0,0,0,10" />
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Classes="paneHeader" Text="Поля" />
+                    <TextBlock Grid.Column="1" Classes="hint" Text="{Binding KindLabel}" />
+                  </Grid>
+
+                  <TextBlock Classes="caption" Text="Заголовок" />
+                  <TextBox Text="{Binding Title}" Watermark="{Binding AutoTitle}" />
+
+                  <TextBlock Classes="caption" Text="Таблица" />
+                  <ComboBox ItemsSource="{Binding TableNames}" SelectedItem="{Binding Table}" />
+
+                  <StackPanel IsVisible="{Binding ShowsCategory}">
+                    <TextBlock Classes="caption" Text="{Binding CategoryCaption}" />
+                    <Grid ColumnDefinitions="*,Auto">
+                      <ComboBox ItemsSource="{Binding CategoryOptions}" SelectedItem="{Binding CategoryField}" PlaceholderText="Не выбрано" />
+                      <Button Grid.Column="1" Classes="icon" Margin="4,0,0,0" Command="{Binding ClearCategory}" ToolTip.Tip="Очистить">
+                        <PathIcon Data="{StaticResource IconClose}" />
+                      </Button>
+                    </Grid>
+                  </StackPanel>
+
+                  <StackPanel IsVisible="{Binding ShowsGranularity}">
+                    <TextBlock Classes="caption" Text="Детализация дат" />
+                    <ComboBox ItemsSource="{Binding Granularities}" SelectedItem="{Binding Granularity}" />
+                  </StackPanel>
+
+                  <StackPanel IsVisible="{Binding ShowsValues}">
+                    <TextBlock Classes="caption" Text="{Binding ValuesCaption}" />
+                    <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                      <ScrollViewer MaxHeight="190">
+                        <ItemsControl ItemsSource="{Binding ValueOptions}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:CheckItem">
+                              <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}" MinHeight="26" FontSize="12" />
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </ScrollViewer>
+                    </Border>
+                  </StackPanel>
+
+                  <StackPanel IsVisible="{Binding ShowsAggregation}">
+                    <TextBlock Classes="caption" Text="Агрегация" />
+                    <ComboBox ItemsSource="{Binding Aggregations}" SelectedItem="{Binding Aggregation}" />
+                  </StackPanel>
+
+                  <StackPanel IsVisible="{Binding ShowsTopN}">
+                    <TextBlock Classes="caption" Text="Показать первые N категорий (0 — все)" />
+                    <NumericUpDown Value="{Binding TopN}" Minimum="0" Maximum="1000" Increment="1" FormatString="0" />
+                  </StackPanel>
+
+                  <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,12,0,0">
+                    <Button Command="{Binding Duplicate}">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="{StaticResource IconCopy}" Width="12" Height="12" />
+                        <TextBlock Text="Дублировать" />
+                      </StackPanel>
+                    </Button>
+                    <Button Command="{Binding Delete}">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="{StaticResource IconDelete}" Width="12" Height="12" />
+                        <TextBlock Text="Удалить" />
+                      </StackPanel>
+                    </Button>
+                  </StackPanel>
+                </StackPanel>
+              </DataTemplate>
+            </ContentControl.ContentTemplate>
+          </ContentControl>
+
+          <!-- Фильтры страницы -->
+          <Rectangle Height="1" Fill="{DynamicResource DividerBrush}" Margin="0,14,0,10" />
+          <TextBlock Classes="paneHeader" Text="Фильтры страницы" />
+          <TextBlock Classes="hint" IsVisible="{Binding !HasFilters}" Text="Фильтры действуют на все визуалы выбранной таблицы." />
+          <ItemsControl ItemsSource="{Binding Filters}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:FilterItemViewModel">
+                <Border Classes="chip" HorizontalAlignment="Stretch" CornerRadius="4">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel>
+                      <TextBlock Text="{Binding TableText}" FontSize="10" Foreground="{DynamicResource SubtleTextBrush}" />
+                      <TextBlock Text="{Binding Text}" FontSize="12" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Classes="icon" VerticalAlignment="Center" Command="{Binding Remove}" ToolTip.Tip="Убрать фильтр">
+                      <PathIcon Data="{StaticResource IconClose}" />
+                    </Button>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <StackPanel Spacing="6" IsVisible="{Binding HasData}">
+            <ComboBox ItemsSource="{Binding TableNames}" SelectedItem="{Binding FilterTable}" />
+            <ComboBox ItemsSource="{Binding FilterColumns}" SelectedItem="{Binding FilterColumn}" PlaceholderText="Столбец" />
+            <ComboBox ItemsSource="{Binding FilterOperators}" SelectedItem="{Binding SelectedOperator}" />
+            <TextBox Text="{Binding FilterValue}" Watermark="Значение" IsEnabled="{Binding FilterNeedsValue}" />
+            <Button HorizontalAlignment="Stretch" Command="{Binding AddFilterCommand}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Data="{StaticResource IconFilter}" Width="14" Height="14" />
+                <TextBlock Text="Добавить фильтр" />
+              </StackPanel>
+            </Button>
+            <Border Classes="error" IsVisible="{Binding FilterError, Converter={x:Static ObjectConverters.IsNotNull}}">
+              <TextBlock Text="{Binding FilterError}" />
+            </Border>
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+  </Grid>
+</UserControl>

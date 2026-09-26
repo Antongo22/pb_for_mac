@@ -1,8 +1,6 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
-using System.Linq;
 using Avalonia.Markup.Xaml;
 using PbForMac.ViewModels;
 using PbForMac.Views;
@@ -20,28 +18,36 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
-            // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
+            // Avoid duplicate validations from both Avalonia and the CommunityToolkit.
             DisableAvaloniaDataAnnotationValidation();
-            desktop.MainWindow = new MainWindow
+
+            var window = new MainWindow();
+            var viewModel = new MainWindowViewModel(new DialogService(window));
+            window.DataContext = viewModel;
+            desktop.MainWindow = window;
+
+            // Отчёт или файл данных, переданный в командной строке.
+            var path = desktop.Args?.FirstOrDefault(File.Exists);
+            if (path is not null)
             {
-                DataContext = new MainWindowViewModel(),
-            };
+                window.Opened += async (_, _) =>
+                {
+                    if (path.EndsWith(Services.ReportSerializer.Extension, StringComparison.OrdinalIgnoreCase))
+                        await viewModel.OpenReportFileAsync(path);
+                    else
+                        await viewModel.ImportFileAsync(path);
+                };
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
     }
 
-    private void DisableAvaloniaDataAnnotationValidation()
+    private static void DisableAvaloniaDataAnnotationValidation()
     {
-        // Get an array of plugins to remove
         var dataValidationPluginsToRemove =
             BindingPlugins.DataValidators.OfType<DataAnnotationsValidationPlugin>().ToArray();
-
-        // remove each entry found
         foreach (var plugin in dataValidationPluginsToRemove)
-        {
             BindingPlugins.DataValidators.Remove(plugin);
-        }
     }
 }

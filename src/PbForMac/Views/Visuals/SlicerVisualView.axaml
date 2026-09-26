@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vis="using:PbForMac.ViewModels.Visuals"
+             x:Class="PbForMac.Views.Visuals.SlicerVisualView"
+             x:DataType="vis:SlicerVisualViewModel">
+  <DockPanel>
+    <Button DockPanel.Dock="Top" HorizontalAlignment="Left" Classes="icon" Padding="4,2" FontSize="12"
+            IsVisible="{Binding HasSelection}" Command="{Binding ClearSelection}" Content="Сбросить выбор" />
+    <ScrollViewer>
+      <ItemsControl ItemsSource="{Binding Items}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vis:SlicerItem">
+            <CheckBox Content="{Binding Label}" IsChecked="{Binding IsSelected}" MinHeight="24" FontSize="12" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

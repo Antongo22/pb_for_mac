@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vis="using:PbForMac.ViewModels.Visuals"
+             x:Class="PbForMac.Views.VisualTileView"
+             x:DataType="vis:VisualViewModel"
+             Width="{Binding Width}" Height="{Binding Height}">
+
+  <Border Classes="tile" Classes.selected="{Binding IsSelected}">
+    <Grid RowDefinitions="Auto,*">
+      <!-- Заголовок: за него плитку можно перетаскивать -->
+      <Grid x:Name="Header" ColumnDefinitions="*,Auto" Background="Transparent" Cursor="SizeAll" Margin="10,6,4,0">
+        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontSize="13"
+                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip.Tip="{Binding DisplayTitle}" />
+        <StackPanel Grid.Column="1" Classes="tileActions" Orientation="Horizontal" Cursor="Arrow">
+          <Button Classes="icon" Command="{Binding Duplicate}" ToolTip.Tip="Дублировать">
+            <PathIcon Data="{StaticResource IconCopy}" />
+          </Button>
+          <Button Classes="icon" Command="{Binding Delete}" ToolTip.Tip="Удалить">
+            <PathIcon Data="{StaticResource IconDelete}" />
+          </Button>
+        </StackPanel>
+      </Grid>
+
+      <ContentControl Grid.Row="1" Content="{Binding}" Margin="8,4,8,8" IsVisible="{Binding !HasMessage}" />
+
+      <TextBlock Grid.Row="1" Text="{Binding Message}" IsVisible="{Binding HasMessage}" Classes="hint"
+                 HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Margin="16" />
+
+      <!-- Уголок для изменения размера -->
+      <Path x:Name="Grip" Grid.Row="1" Width="12" Height="12" Margin="0,0,2,2"
+            HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="BottomRightCorner"
+            Fill="#8A8886" Opacity="0.6" Data="M12,0 L12,12 L0,12 Z" />
+    </Grid>
+  </Border>
+</UserControl>

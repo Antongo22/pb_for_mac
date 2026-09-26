@@ -1,0 +1,12 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vis="using:PbForMac.ViewModels.Visuals"
+             x:Class="PbForMac.Views.Visuals.CardVisualView"
+             x:DataType="vis:CardVisualViewModel">
+  <Viewbox StretchDirection="Both" Stretch="Uniform" MaxHeight="120">
+    <StackPanel HorizontalAlignment="Center" Margin="8">
+      <TextBlock Text="{Binding Value}" FontSize="40" FontWeight="SemiBold" HorizontalAlignment="Center" />
+      <TextBlock Text="{Binding Caption}" Classes="hint" HorizontalAlignment="Center" />
+    </StackPanel>
+  </Viewbox>
+</UserControl>
