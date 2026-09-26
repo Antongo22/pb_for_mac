@@ -27,6 +27,12 @@ public sealed class DataSourceDefinition
     /// <summary>Для папки: объединять также файлы из подпапок.</summary>
     public bool IncludeSubfolders { get; set; }
 
+    /// <summary>
+    /// Папка в списке таблиц (например, «dataset/sales»), повторяющая структуру импортированной папки.
+    /// null — таблица в корне списка.
+    /// </summary>
+    public string? Group { get; set; }
+
     /// <summary>Имя таблицы в модели.</summary>
     public string TableName { get; set; } = "";
 }

@@ -84,6 +84,78 @@ public class MainWindowViewModelTests : IDisposable
         Assert.Equal(5, vm.Model.GetTable("dataset")!.Rows.Count);
     }
 
+    /// <summary>Дерево как текст: «папка/» для папок, отступ — уровень вложенности.</summary>
+    private static List<string> Tree(IEnumerable<TableTreeNode> nodes, string indent = "") =>
+        nodes.SelectMany(n => new[] { indent + n.Name + (n.IsFolder ? "/" : "") }
+            .Concat(n.IsFolder ? Tree(n.Children, indent + "  ") : [])).ToList();
+
+    [Fact]
+    public async Task TableTree_SeparateFiles_MirrorsFolderStructure()
+    {
+        _dialogs.Choice = 2;
+        var vm = CreateViewModel();
+        await vm.OpenPathAsync(_files.Write("standalone.csv", "a\n1\n"));
+
+        await vm.OpenPathAsync(CreateDatasetFolder());
+
+        Assert.Equal(
+        [
+            "dataset/",
+            "  sales/",
+            "    sales_v2_parts/",
+            "      sales_2024_01",
+            "      sales_2024_02",
+            "  price",
+            "  sellers",
+            "standalone",
+        ], Tree(vm.Data.TableTree));
+        // Последняя загруженная таблица выделена в дереве.
+        Assert.Equal("sellers", vm.Data.SelectedNode?.Name);
+    }
+
+    [Fact]
+    public async Task TableTree_BySubfolders_PutsCombinedTableIntoParentFolder()
+    {
+        _dialogs.Choice = 0;
+        var vm = CreateViewModel();
+
+        await vm.OpenPathAsync(CreateDatasetFolder());
+
+        Assert.Equal(["dataset/", "  sales/", "    sales_v2_parts", "  price", "  sellers"], Tree(vm.Data.TableTree));
+        Assert.Equal("dataset/sales", vm.Model.Sources.Single(s => s.TableName == "sales_v2_parts").Group);
+    }
+
+    [Fact]
+    public async Task TableTree_RemovingFolder_RemovesAllItsTables()
+    {
+        _dialogs.Choice = 2;
+        var vm = CreateViewModel();
+        await vm.OpenPathAsync(_files.Write("standalone.csv", "a\n1\n"));
+        await vm.OpenPathAsync(CreateDatasetFolder());
+
+        vm.Data.SelectedNode = vm.Data.TableTree[0];
+        Assert.Equal("Удалить папку", vm.Data.RemoveLabel);
+        await vm.Data.RemoveTableCommand.ExecuteAsync(null);
+
+        Assert.Equal(["standalone"], vm.Model.Tables.Select(t => t.TableName));
+        Assert.Equal(["standalone"], Tree(vm.Data.TableTree));
+    }
+
+    [Fact]
+    public async Task TableTree_FoldersAreSavedInReport()
+    {
+        _dialogs.Choice = 2;
+        var vm = CreateViewModel();
+        await vm.OpenPathAsync(CreateDatasetFolder());
+        var reportPath = _files.PathOf("report.pbm");
+        ReportSerializer.Save(new Models.ReportDefinition { Sources = vm.Model.Sources }, reportPath);
+
+        var reopened = CreateViewModel();
+        await reopened.OpenReportFileAsync(reportPath);
+
+        Assert.Equal(Tree(vm.Data.TableTree), Tree(reopened.Data.TableTree));
+    }
+
     [Fact]
     public async Task FolderWithOnlySubfolder_IsNotEmpty()
     {

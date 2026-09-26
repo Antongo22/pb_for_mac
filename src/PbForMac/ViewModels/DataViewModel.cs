@@ -28,6 +28,9 @@ public sealed partial class DataViewModel : ViewModelBase
     public IRelayCommand ImportCommand { get; }
     public IRelayCommand ImportFolderCommand { get; }
     public ObservableCollection<TableItem> Tables { get; } = [];
+
+    /// <summary>Таблицы, разложенные по папкам импорта (папки — первыми).</summary>
+    public ObservableCollection<TableTreeNode> TableTree { get; } = [];
     public ObservableCollection<string> Columns { get; } = [];
     public ObservableCollection<FilterItemViewModel> Filters { get; } = [];
     public ObservableCollection<StatItem> Profile { get; } = [];
@@ -38,6 +41,15 @@ public sealed partial class DataViewModel : ViewModelBase
 
     [ObservableProperty]
     private TableItem? _selectedTable;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RemoveLabel))]
+    private TableTreeNode? _selectedNode;
+
+    public string RemoveLabel => SelectedNode?.IsFolder == true ? "Удалить папку" : "Удалить таблицу";
+
+    private readonly HashSet<string> _collapsedFolders = [];
+    private bool _syncingSelection;
 
     [ObservableProperty]
     private TableSlice? _slice;
@@ -78,13 +90,109 @@ public sealed partial class DataViewModel : ViewModelBase
         foreach (var table in _model.Tables)
             Tables.Add(new TableItem(table.TableName, $"{table.Rows.Count:#,0} строк · {table.Columns.Count} столбцов"));
         OnPropertyChanged(nameof(HasTables));
+        BuildTree();
 
         SelectedTable = Tables.FirstOrDefault(t => t.Name == selected) ?? Tables.FirstOrDefault();
+        SyncSelectedNode();
         // Таблица могла пересобраться с тем же именем — обновляем данные в любом случае.
         LoadTable();
     }
 
-    partial void OnSelectedTableChanged(TableItem? value) => LoadTable();
+    partial void OnSelectedTableChanged(TableItem? value)
+    {
+        SyncSelectedNode();
+        LoadTable();
+    }
+
+    partial void OnSelectedNodeChanged(TableTreeNode? value)
+    {
+        // Выбор папки не меняет показанную таблицу; выбор таблицы — показывает её.
+        if (!_syncingSelection && value?.Table is { } table && table != SelectedTable)
+            SelectedTable = table;
+    }
+
+    /// <summary>Строит дерево папок по полю Group источников, сохраняя свёрнутые папки.</summary>
+    private void BuildTree()
+    {
+        var root = TableTreeNode.Folder("", "");
+        foreach (var table in Tables)
+        {
+            var node = root;
+            var group = _model.GroupOf(table.Name);
+            if (!string.IsNullOrEmpty(group))
+            {
+                var path = "";
+                foreach (var part in group.Split('/', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    path = path.Length == 0 ? part : $"{path}/{part}";
+                    var child = node.Children.FirstOrDefault(c => c.IsFolder && c.Name == part);
+                    if (child is null)
+                    {
+                        child = TableTreeNode.Folder(part, path);
+                        child.IsExpanded = !_collapsedFolders.Contains(path);
+                        child.PropertyChanged += (sender, e) =>
+                        {
+                            if (e.PropertyName != nameof(TableTreeNode.IsExpanded) || sender is not TableTreeNode folder)
+                                return;
+                            if (folder.IsExpanded) _collapsedFolders.Remove(folder.Path);
+                            else _collapsedFolders.Add(folder.Path);
+                        };
+                        node.Children.Add(child);
+                    }
+                    node = child;
+                }
+            }
+            node.Children.Add(TableTreeNode.ForTable(table));
+        }
+
+        _syncingSelection = true;
+        SelectedNode = null; // старые узлы больше не входят в дерево
+        TableTree.Clear();
+        foreach (var node in SortFoldersFirst(root.Children))
+            TableTree.Add(node);
+        _syncingSelection = false;
+    }
+
+    private static IEnumerable<TableTreeNode> SortFoldersFirst(IEnumerable<TableTreeNode> nodes)
+    {
+        var sorted = nodes.Where(n => n.IsFolder).OrderBy(n => n.Name, StringComparer.CurrentCultureIgnoreCase)
+            .Concat(nodes.Where(n => !n.IsFolder))
+            .ToList();
+        foreach (var folder in sorted.Where(n => n.IsFolder))
+        {
+            var children = SortFoldersFirst(folder.Children).ToList();
+            folder.Children.Clear();
+            foreach (var child in children)
+                folder.Children.Add(child);
+        }
+        return sorted;
+    }
+
+    /// <summary>Выделяет в дереве узел текущей таблицы и раскрывает папки над ним.</summary>
+    private void SyncSelectedNode()
+    {
+        if (SelectedNode?.Table == SelectedTable && SelectedNode is not null)
+            return;
+        _syncingSelection = true;
+        SelectedNode = SelectedTable is null ? null : FindNode(TableTree, SelectedTable.Name, expand: true);
+        _syncingSelection = false;
+    }
+
+    private static TableTreeNode? FindNode(IEnumerable<TableTreeNode> nodes, string tableName, bool expand)
+    {
+        foreach (var node in nodes)
+        {
+            if (node.Table?.Name == tableName)
+                return node;
+            if (node.IsFolder && FindNode(node.Children, tableName, expand) is { } found)
+            {
+                if (expand)
+                    node.IsExpanded = true;
+                return found;
+            }
+        }
+        return null;
+    }
 
     partial void OnSearchTextChanged(string value) => ApplyView();
 
@@ -257,6 +365,15 @@ public sealed partial class DataViewModel : ViewModelBase
     [RelayCommand]
     private async Task RemoveTableAsync()
     {
+        if (SelectedNode is { IsFolder: true } folder)
+        {
+            var names = folder.AllTables().Select(t => t.Name).ToList();
+            if (await _dialogs.ConfirmAsync("Удалить папку",
+                    $"Удалить папку «{folder.Name}» и все таблицы в ней ({names.Count}) вместе со связанными шагами преобразований?"))
+                _model.RemoveTables(names);
+            return;
+        }
+
         var table = SelectedTable;
         if (table is null)
             return;

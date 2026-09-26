@@ -125,8 +125,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             : ImportFileAsync(path);
     }
 
-    /// <summary>Импортирует файл; если в нём несколько листов или таблиц, предлагает выбрать.</summary>
-    public async Task ImportFileAsync(string path)
+    /// <summary>
+    /// Импортирует файл; если в нём несколько листов или таблиц, предлагает выбрать
+    /// (они попадут в папку с именем файла). <paramref name="group"/> — папка в списке таблиц.
+    /// </summary>
+    public async Task ImportFileAsync(string path, string? group = null)
     {
         var sources = new List<DataSourceDefinition>();
         try
@@ -155,6 +158,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 Path = Path.GetFullPath(path),
                 Item = item,
                 TableName = items.Count > 1 ? item! : Path.GetFileNameWithoutExtension(path),
+                Group = items.Count > 1 ? JoinGroup(group, Path.GetFileName(path)) : group,
             }));
         }
         catch (Exception e)
@@ -198,6 +202,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         var rootFiles = groups.FirstOrDefault(g => g.Directory == folder).Files ?? [];
         var subfolders = groups.Where(g => g.Directory != folder).ToList();
         var combinable = FolderImporter.FindFiles(folder, combinableOnly: true, recursive: true);
+        // Таблицы раскладываются в списке по папкам так же, как файлы лежат на диске.
+        string GroupFor(string directory) =>
+            directory == folder ? folderName : JoinGroup(folderName, FolderImporter.RelativeName(folder, directory));
 
         var message = $"В папке «{folderName}» найдено файлов: {files.Count} ({Summary(files)}).";
         if (subfolders.Count > 0)
@@ -211,7 +218,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         {
             message += "\n\n• По подпапкам — файлы из самой папки станут отдельными таблицами, " +
                        "а файлы каждой подпапки объединятся в одну таблицу с её именем.";
-            options.Add(("По подпапкам: подпапка — одна таблица", () => ImportBySubfoldersAsync(folder, groups)));
+            options.Add(("По подпапкам: подпапка — одна таблица", () => ImportBySubfoldersAsync(folder, groups, GroupFor)));
         }
         if (combinable.Count > 1)
         {
@@ -234,7 +241,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         options.Add(("Каждый файл — отдельная таблица", async () =>
         {
             foreach (var file in files)
-                await ImportFileAsync(file);
+                await ImportFileAsync(file, GroupFor(Path.GetDirectoryName(file)!));
         }));
 
         var choice = await _dialogs.ChooseAsync("Данные из папки", message, options.Select(o => o.Label).ToList());
@@ -243,7 +250,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     }
 
     /// <summary>Файлы самой папки — отдельными таблицами, каждая подпапка — одной объединённой таблицей.</summary>
-    private async Task ImportBySubfoldersAsync(string folder, IReadOnlyList<(string Directory, List<string> Files)> groups)
+    private async Task ImportBySubfoldersAsync(string folder, IReadOnlyList<(string Directory, List<string> Files)> groups,
+        Func<string, string> groupFor)
     {
         foreach (var (directory, files) in groups)
         {
@@ -251,17 +259,29 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             if (directory == folder || combinable.Count < 2)
             {
                 foreach (var file in files)
-                    await ImportFileAsync(file);
+                    await ImportFileAsync(file, groupFor(directory));
                 continue;
             }
 
+            // Объединённая подпапка становится таблицей внутри родительской папки.
             await AddSourcesAsync(Path.GetFileName(directory),
-                [new DataSourceDefinition { Kind = SourceKind.Folder, Path = directory, TableName = Path.GetFileName(directory) }]);
+            [
+                new DataSourceDefinition
+                {
+                    Kind = SourceKind.Folder,
+                    Path = directory,
+                    TableName = Path.GetFileName(directory),
+                    Group = groupFor(Path.GetDirectoryName(directory)!),
+                },
+            ]);
             // Базы SQLite из подпапки загружаются отдельно: их таблицы не объединяются построчно.
             foreach (var file in files.Except(combinable))
-                await ImportFileAsync(file);
+                await ImportFileAsync(file, groupFor(directory));
         }
     }
+
+    private static string JoinGroup(string? parent, string name) =>
+        string.IsNullOrEmpty(parent) ? name : $"{parent}/{name}";
 
     private static string Summary(IEnumerable<string> files) => string.Join(", ", files
         .GroupBy(f => Path.GetExtension(f).TrimStart('.').ToUpperInvariant())

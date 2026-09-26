@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using PbForMac.Models;
 
@@ -75,3 +76,44 @@ public sealed class AggregationSpecItem(AggregationSpec spec, Action<Aggregation
 
 /// <summary>Показатель профиля столбца.</summary>
 public sealed record StatItem(string Label, string Value);
+
+/// <summary>Узел дерева таблиц: папка (с вложенными узлами) или таблица.</summary>
+public sealed partial class TableTreeNode : ObservableObject
+{
+    private TableTreeNode(string name, string path, TableItem? table)
+    {
+        Name = name;
+        Path = path;
+        Table = table;
+    }
+
+    public static TableTreeNode Folder(string name, string path) => new(name, path, null);
+
+    public static TableTreeNode ForTable(TableItem table) => new(table.Name, table.Name, table);
+
+    public string Name { get; }
+
+    /// <summary>Путь папки («dataset/sales») или имя таблицы.</summary>
+    public string Path { get; }
+
+    public TableItem? Table { get; }
+    public bool IsFolder => Table is null;
+    public ObservableCollection<TableTreeNode> Children { get; } = [];
+
+    public string Description => Table?.Description ?? CountLabel(AllTables().Count());
+
+    [ObservableProperty]
+    private bool _isExpanded = true;
+
+    /// <summary>Все таблицы внутри узла (для папки — рекурсивно).</summary>
+    public IEnumerable<TableItem> AllTables() =>
+        Table is not null ? [Table] : Children.SelectMany(c => c.AllTables());
+
+    private static string CountLabel(int count) => (count % 100, count % 10) switch
+    {
+        ( >= 11 and <= 14, _) => $"{count} таблиц",
+        (_, 1) => $"{count} таблица",
+        (_, >= 2 and <= 4) => $"{count} таблицы",
+        _ => $"{count} таблиц",
+    };
+}

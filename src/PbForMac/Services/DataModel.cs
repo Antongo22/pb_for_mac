@@ -22,6 +22,19 @@ public sealed class DataModel
     /// <summary>Модель изменилась (таблицы пересобраны).</summary>
     public event EventHandler? Changed;
 
+    /// <summary>Папка таблицы в списке (по источнику); у производных таблиц — папка исходной таблицы.</summary>
+    public string? GroupOf(string tableName)
+    {
+        var source = Sources.FirstOrDefault(s => string.Equals(s.TableName, tableName, StringComparison.OrdinalIgnoreCase));
+        if (source is not null)
+            return source.Group;
+        var creator = Steps.OfType<GroupByStep>()
+            .FirstOrDefault(g => string.Equals(g.NewTable, tableName, StringComparison.OrdinalIgnoreCase));
+        return creator is null || string.Equals(creator.Table, tableName, StringComparison.OrdinalIgnoreCase)
+            ? null
+            : GroupOf(creator.Table);
+    }
+
     public DataTable? GetTable(string? name) =>
         name is null ? null : _tables.FirstOrDefault(t => string.Equals(t.TableName, name, StringComparison.OrdinalIgnoreCase));
 
@@ -60,11 +73,15 @@ public sealed class DataModel
     }
 
     /// <summary>Удаляет таблицу вместе с источником и всеми зависящими от неё шагами.</summary>
-    public void RemoveTable(string name)
+    public void RemoveTable(string name) => RemoveTables([name]);
+
+    /// <summary>Удаляет несколько таблиц (например, целую папку) с одной пересборкой модели.</summary>
+    public void RemoveTables(IEnumerable<string> names)
     {
-        var removed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { name };
-        Sources.RemoveAll(s => string.Equals(s.TableName, name, StringComparison.OrdinalIgnoreCase));
-        _raw.Remove(name);
+        var removed = new HashSet<string>(names, StringComparer.OrdinalIgnoreCase);
+        Sources.RemoveAll(s => removed.Contains(s.TableName));
+        foreach (var name in removed)
+            _raw.Remove(name);
 
         foreach (var step in Steps.ToList())
         {
