@@ -24,6 +24,9 @@ public sealed class DataSourceDefinition
     /// <summary>Лист Excel или таблица SQLite; null, если в файле один набор данных.</summary>
     public string? Item { get; set; }
 
+    /// <summary>Для папки: объединять также файлы из подпапок.</summary>
+    public bool IncludeSubfolders { get; set; }
+
     /// <summary>Имя таблицы в модели.</summary>
     public string TableName { get; set; } = "";
 }

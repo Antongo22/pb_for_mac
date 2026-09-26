@@ -29,6 +29,33 @@ public class FolderImporterTests : IDisposable
     }
 
     [Fact]
+    public void Folder_IncludeSubfolders_CombinesNestedFilesAndSkipsHiddenFolders()
+    {
+        _files.Write("root.csv", "id,value\n1,10\n");
+        Directory.CreateDirectory(_files.PathOf(Path.Combine("sales", "parts")));
+        _files.Write(Path.Combine("sales", "parts", "p1.csv"), "id,value\n2,20\n");
+        Directory.CreateDirectory(_files.PathOf(".git"));
+        _files.Write(Path.Combine(".git", "hidden.csv"), "id,value\n9,90\n");
+
+        Assert.Single(FolderImporter.FindFiles(_files.Directory));
+        var table = new FolderImporter(includeSubfolders: true).Import(_files.Directory, null);
+
+        Assert.Equal(["root.csv", "sales/parts/p1.csv"], table.Rows.Cast<DataRow>().Select(r => (string)r["Файл"]));
+    }
+
+    [Fact]
+    public void Folder_IncludeSubfolders_IsStoredInSourceAndUsedOnReload()
+    {
+        Directory.CreateDirectory(_files.PathOf("parts"));
+        _files.Write(Path.Combine("parts", "a.csv"), "x\n1\n");
+        var source = new DataSourceDefinition { Kind = SourceKind.Folder, Path = _files.Directory, TableName = "T", IncludeSubfolders = true };
+
+        Assert.Equal(1, ImporterFactory.Load(source).Rows.Count);
+        var json = ReportSerializer.Serialize(new ReportDefinition { Sources = [source] });
+        Assert.True(ReportSerializer.Deserialize(json).Sources[0].IncludeSubfolders);
+    }
+
+    [Fact]
     public void Folder_SkipsSqliteWhenCombining()
     {
         _files.Write("a.csv", "x\n1\n");

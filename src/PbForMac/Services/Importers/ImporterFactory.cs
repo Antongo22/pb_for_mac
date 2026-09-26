@@ -41,7 +41,8 @@ public static class ImporterFactory
     /// <summary>Загружает источник и приводит типы столбцов.</summary>
     public static System.Data.DataTable Load(DataSourceDefinition source)
     {
-        var raw = Create(source.Kind).Import(source.Path, source.Item);
+        var importer = source.Kind == SourceKind.Folder ? new FolderImporter(source.IncludeSubfolders) : Create(source.Kind);
+        var raw = importer.Import(source.Path, source.Item);
         var table = TypeInference.Apply(raw);
         table.TableName = source.TableName;
         return table;

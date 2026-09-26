@@ -169,18 +169,19 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Импортирует папку: объединяет файлы в одну таблицу (как источник «Папка» в Power BI)
-    /// или загружает каждый файл отдельной таблицей — на выбор пользователя.
+    /// Импортирует папку вместе с подпапками. Пользователь выбирает способ:
+    /// по подпапкам (файлы папки — отдельные таблицы, каждая подпапка — одна объединённая таблица),
+    /// всё в одну таблицу (как источник «Папка» в Power BI) или каждый файл отдельной таблицей.
     /// </summary>
     public async Task ImportFolderPathAsync(string folder)
     {
         folder = Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder));
         var folderName = Path.GetFileName(folder);
-        var files = FolderImporter.FindFiles(folder);
+        var files = FolderImporter.FindFiles(folder, recursive: true);
         if (files.Count == 0)
         {
             await _dialogs.ShowMessageAsync("Нет данных",
-                $"В папке «{folderName}» нет файлов CSV, Excel, JSON, XML или SQLite.");
+                $"В папке «{folderName}» и её подпапках нет файлов CSV, Excel, JSON, XML или SQLite.");
             return;
         }
         if (files.Count == 1)
@@ -189,38 +190,82 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        var combinable = FolderImporter.FindFiles(folder, combinableOnly: true);
-        var summary = string.Join(", ", files
-            .GroupBy(f => Path.GetExtension(f).TrimStart('.').ToUpperInvariant())
-            .Select(g => $"{g.Key}: {g.Count()}"));
-        var message = $"В папке «{folderName}» найдено файлов: {files.Count} ({summary}).";
-        IReadOnlyList<string> options;
-        if (combinable.Count > 1)
+        // Файлы, сгруппированные по папкам, в которых они лежат.
+        var groups = files
+            .GroupBy(f => Path.GetDirectoryName(f)!)
+            .Select(g => (Directory: g.Key, Files: g.ToList()))
+            .ToList();
+        var rootFiles = groups.FirstOrDefault(g => g.Directory == folder).Files ?? [];
+        var subfolders = groups.Where(g => g.Directory != folder).ToList();
+        var combinable = FolderImporter.FindFiles(folder, combinableOnly: true, recursive: true);
+
+        var message = $"В папке «{folderName}» найдено файлов: {files.Count} ({Summary(files)}).";
+        if (subfolders.Count > 0)
         {
-            message += "\n\nОбъединение сложит строки всех файлов в одну таблицу по совпадающим столбцам " +
-                       "и добавит столбец «Файл» с именем исходного файла. Кнопка «Обновить» подхватит новые файлы, " +
-                       "появившиеся в папке.";
-            if (combinable.Count < files.Count)
-                message += " Базы SQLite в объединение не входят.";
-            options = ["Объединить в одну таблицу", "Каждый файл — отдельная таблица"];
-        }
-        else
-        {
-            options = ["Каждый файл — отдельная таблица"];
+            message += $"\nВ самой папке: {rootFiles.Count}, в подпапках: {files.Count - rootFiles.Count} — " +
+                       string.Join(", ", subfolders.Select(g => $"{FolderImporter.RelativeName(folder, g.Directory)} ({g.Files.Count})")) + ".";
         }
 
-        var choice = await _dialogs.ChooseAsync("Данные из папки", message, options);
-        if (choice < 0)
-            return;
-        if (combinable.Count > 1 && choice == 0)
+        var options = new List<(string Label, Func<Task> Action)>();
+        if (subfolders.Count > 0)
         {
-            await AddSourcesAsync(folderName,
-                [new DataSourceDefinition { Kind = SourceKind.Folder, Path = folder, TableName = folderName }]);
-            return;
+            message += "\n\n• По подпапкам — файлы из самой папки станут отдельными таблицами, " +
+                       "а файлы каждой подпапки объединятся в одну таблицу с её именем.";
+            options.Add(("По подпапкам: подпапка — одна таблица", () => ImportBySubfoldersAsync(folder, groups)));
         }
-        foreach (var file in files)
-            await ImportFileAsync(file);
+        if (combinable.Count > 1)
+        {
+            message += "\n\n• Одна таблица — строки всех файлов" + (subfolders.Count > 0 ? ", включая подпапки," : "") +
+                       " сложатся по совпадающим столбцам, столбец «Файл» покажет источник строки. " +
+                       "Кнопка «Обновить» подхватит новые файлы, появившиеся в папке.";
+            if (combinable.Count < files.Count)
+                message += " Базы SQLite в объединение не входят.";
+            options.Add(("Объединить всё в одну таблицу", () => AddSourcesAsync(folderName,
+            [
+                new DataSourceDefinition
+                {
+                    Kind = SourceKind.Folder,
+                    Path = folder,
+                    TableName = folderName,
+                    IncludeSubfolders = subfolders.Count > 0,
+                },
+            ])));
+        }
+        options.Add(("Каждый файл — отдельная таблица", async () =>
+        {
+            foreach (var file in files)
+                await ImportFileAsync(file);
+        }));
+
+        var choice = await _dialogs.ChooseAsync("Данные из папки", message, options.Select(o => o.Label).ToList());
+        if (choice >= 0 && choice < options.Count)
+            await options[choice].Action();
     }
+
+    /// <summary>Файлы самой папки — отдельными таблицами, каждая подпапка — одной объединённой таблицей.</summary>
+    private async Task ImportBySubfoldersAsync(string folder, IReadOnlyList<(string Directory, List<string> Files)> groups)
+    {
+        foreach (var (directory, files) in groups)
+        {
+            var combinable = files.Where(f => ImporterFactory.KindFor(f) != SourceKind.Sqlite).ToList();
+            if (directory == folder || combinable.Count < 2)
+            {
+                foreach (var file in files)
+                    await ImportFileAsync(file);
+                continue;
+            }
+
+            await AddSourcesAsync(Path.GetFileName(directory),
+                [new DataSourceDefinition { Kind = SourceKind.Folder, Path = directory, TableName = Path.GetFileName(directory) }]);
+            // Базы SQLite из подпапки загружаются отдельно: их таблицы не объединяются построчно.
+            foreach (var file in files.Except(combinable))
+                await ImportFileAsync(file);
+        }
+    }
+
+    private static string Summary(IEnumerable<string> files) => string.Join(", ", files
+        .GroupBy(f => Path.GetExtension(f).TrimStart('.').ToUpperInvariant())
+        .Select(g => $"{g.Key}: {g.Count()}"));
 
     /// <summary>Загружает источники в модель и показывает результат на странице «Данные».</summary>
     private async Task AddSourcesAsync(string displayName, IReadOnlyList<DataSourceDefinition> sources)

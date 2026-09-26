@@ -42,6 +42,60 @@ public class MainWindowViewModelTests : IDisposable
         Assert.Same(vm.Data, vm.CurrentPage);
     }
 
+    /// <summary>Структура как у типичного набора: справочники в корне и помесячные части в подпапке.</summary>
+    private string CreateDatasetFolder()
+    {
+        var root = Path.Combine(_files.Directory, "dataset");
+        var parts = Path.Combine(root, "sales", "sales_v2_parts");
+        Directory.CreateDirectory(parts);
+        File.WriteAllText(Path.Combine(root, "price.csv"), "ID_PRODUCT,Price\n1,1.5\n");
+        File.WriteAllText(Path.Combine(root, "sellers.csv"), "ID_OUTLET,Retail Chain\n1,DailyMart\n");
+        File.WriteAllText(Path.Combine(parts, "sales_2024_01.csv"), "year,month,Sales\n2024,1,10\n");
+        File.WriteAllText(Path.Combine(parts, "sales_2024_02.csv"), "year,month,Sales\n2024,2,20\n2024,2,5\n");
+        return root;
+    }
+
+    [Fact]
+    public async Task FolderWithSubfolders_BySubfolders_CombinesEachSubfolder()
+    {
+        _dialogs.Choice = 0;
+        var vm = CreateViewModel();
+
+        await vm.OpenPathAsync(CreateDatasetFolder());
+
+        Assert.Equal(["По подпапкам: подпапка — одна таблица", "Объединить всё в одну таблицу", "Каждый файл — отдельная таблица"],
+            _dialogs.LastOptions);
+        Assert.Equal(["price", "sellers", "sales_v2_parts"], vm.Model.Tables.Select(t => t.TableName));
+        Assert.Equal(3, vm.Model.GetTable("sales_v2_parts")!.Rows.Count);
+    }
+
+    [Fact]
+    public async Task FolderWithSubfolders_CombineAll_IncludesNestedFiles()
+    {
+        _dialogs.Choice = 1;
+        var vm = CreateViewModel();
+
+        await vm.OpenPathAsync(CreateDatasetFolder());
+
+        var source = Assert.Single(vm.Model.Sources);
+        Assert.True(source.IncludeSubfolders);
+        var files = vm.Model.GetTable("dataset")!.Rows.Cast<System.Data.DataRow>().Select(r => (string)r[FolderImporter.FileColumn]).Distinct();
+        Assert.Contains("sales/sales_v2_parts/sales_2024_02.csv", files);
+        Assert.Equal(5, vm.Model.GetTable("dataset")!.Rows.Count);
+    }
+
+    [Fact]
+    public async Task FolderWithOnlySubfolder_IsNotEmpty()
+    {
+        // Раньше папка «sales», где файлы лежат только в подпапке, считалась пустой.
+        _dialogs.Choice = 0;
+        var vm = CreateViewModel();
+
+        await vm.OpenPathAsync(Path.Combine(CreateDatasetFolder(), "sales"));
+
+        Assert.Equal(["sales_v2_parts"], vm.Model.Tables.Select(t => t.TableName));
+    }
+
     [Fact]
     public async Task Folder_Separate_ImportsEachFile()
     {
