@@ -39,11 +39,18 @@ public partial class VisualTileView : UserControl
     private void OnAnyPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         ViewModel?.Select();
-        // Фокус на странице отчёта, чтобы работало удаление клавишей Delete/⌫.
-        if (e.Source is not TextBox)
+        // Фокус на страницу отчёта (для удаления клавишей Delete/⌫) переводим только при клике по самой плитке:
+        // кнопка или флажок, потерявшие фокус во время нажатия, сбрасывают его, и клик не срабатывает.
+        if (!IsInsideFocusableControl(e.Source))
             this.FindAncestorOfType<ReportView>()?.Focus();
         e.Handled = true;
     }
+
+    /// <summary>Нажатие пришлось на кнопку, флажок, поле ввода, таблицу и т. п. внутри плитки.</summary>
+    private bool IsInsideFocusableControl(object? source) =>
+        source is Visual visual && visual.GetSelfAndVisualAncestors()
+            .TakeWhile(v => v != this)
+            .Any(v => v is InputElement { Focusable: true });
 
     private void BeginDrag(DragMode mode, PointerPressedEventArgs e)
     {
