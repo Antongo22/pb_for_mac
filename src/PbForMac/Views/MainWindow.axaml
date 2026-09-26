@@ -6,7 +6,7 @@
         mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="860"
         x:Class="PbForMac.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Icon="/Assets/app.ico"
+        Icon="/Assets/app.png"
         Title="{Binding Title}"
         Width="1440" Height="900" MinWidth="960" MinHeight="600"
         WindowStartupLocation="CenterScreen">
