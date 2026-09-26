@@ -219,3 +219,26 @@ public sealed class RelationshipItemViewModel(
 
     public void Remove() => remove(this);
 }
+
+/// <summary>Вкладка страницы отчёта.</summary>
+public sealed partial class ReportPageItem : ObservableObject
+{
+    public ReportPageItem(string name, Action<ReportPageItem> select)
+    {
+        _name = name;
+        _select = select;
+    }
+
+    private readonly Action<ReportPageItem> _select;
+
+    [ObservableProperty]
+    private string _name;
+
+    [ObservableProperty]
+    private bool _isSelected;
+
+    public List<VisualDefinition> Visuals { get; set; } = [];
+    public List<FilterDefinition> Filters { get; set; } = [];
+
+    public void Select() => _select(this);
+}

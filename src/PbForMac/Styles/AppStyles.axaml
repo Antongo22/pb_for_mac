@@ -136,6 +136,10 @@
     <Setter Property="BorderBrush" Value="{StaticResource SelectionBrush}" />
     <Setter Property="BorderThickness" Value="2" />
   </Style>
+  <Style Selector="Button.pageTab.selected">
+    <Setter Property="Background" Value="{DynamicResource ChipBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
   <Style Selector="Border.error">
     <Setter Property="Background" Value="{DynamicResource ErrorBackgroundBrush}" />
     <Setter Property="CornerRadius" Value="4" />

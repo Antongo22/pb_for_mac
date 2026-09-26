@@ -71,6 +71,7 @@ public sealed partial class ReportViewModel : ViewModelBase
                 "M3,4 H8 V9 H3 Z M10,5.5 H21 V7.5 H10 Z M3,10 H8 V15 H3 Z M10,11.5 H21 V13.5 H10 Z M3,16 H8 V21 H3 Z M10,17.5 H21 V19.5 H10 Z",
                 AddOrChangeVisual),
         ];
+        EnsureDefaultPage();
     }
 
     public DataModel Model { get; }
@@ -85,6 +86,7 @@ public sealed partial class ReportViewModel : ViewModelBase
     public ObservableCollection<string> TableNames { get; } = [];
     public ObservableCollection<FieldTableNode> FieldTables { get; } = [];
     public ObservableCollection<FilterItemViewModel> Filters { get; } = [];
+    public ObservableCollection<ReportPageItem> Pages { get; } = [];
     public ObservableCollection<string> FilterColumns { get; } = [];
     public IReadOnlyList<Option<FilterOperator>> FilterOperators => Labels.FilterOperators;
 
@@ -95,11 +97,16 @@ public sealed partial class ReportViewModel : ViewModelBase
     public bool HasData => Model.Tables.Count > 0;
     public bool HasSelection => SelectedVisual is not null;
     public bool HasFilters => Filters.Count > 0;
+    public bool CanDeletePage => Pages.Count > 1;
     public bool FilterNeedsValue => Labels.OperatorNeedsValue(SelectedOperator.Value);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelection))]
     private VisualViewModel? _selectedVisual;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanDeletePage))]
+    private ReportPageItem? _selectedPage;
 
     [ObservableProperty]
     private double _boardWidth = 1280;
@@ -476,6 +483,18 @@ public sealed partial class ReportViewModel : ViewModelBase
 
     public List<FilterDefinition> GetFilterDefinitions() => Filters.Select(f => f.Definition).ToList();
 
+    /// <summary>Снимок всех страниц для сохранения в .pbm.</summary>
+    public List<ReportPage> GetPages()
+    {
+        FlushSelectedPage();
+        return Pages.Select(p => new ReportPage
+        {
+            Name = p.Name,
+            Visuals = p.Visuals.Select(CloneVisual).ToList(),
+            Filters = p.Filters.Select(CloneFilter).ToList(),
+        }).ToList();
+    }
+
     public void Clear()
     {
         SelectedVisual = null;
@@ -484,22 +503,160 @@ public sealed partial class ReportViewModel : ViewModelBase
         Visuals.Clear();
         Filters.Clear();
         OnPropertyChanged(nameof(HasFilters));
+        Pages.Clear();
+        SelectedPage = null;
+        EnsureDefaultPage();
     }
 
     public void Load(IEnumerable<VisualDefinition> visuals, IEnumerable<FilterDefinition> filters)
     {
-        Clear();
-        foreach (var filter in filters)
+        LoadPages([new ReportPage { Name = "Страница 1", Visuals = visuals.ToList(), Filters = filters.ToList() }]);
+    }
+
+    public void LoadPages(IEnumerable<ReportPage> pages)
+    {
+        SelectedVisual = null;
+        foreach (var visual in Visuals)
+            visual.PropertyChanged -= OnVisualPropertyChanged;
+        Visuals.Clear();
+        Filters.Clear();
+        Pages.Clear();
+        SelectedPage = null;
+
+        var list = pages.ToList();
+        if (list.Count == 0)
+            list.Add(new ReportPage { Name = "Страница 1" });
+
+        foreach (var page in list)
+        {
+            Pages.Add(new ReportPageItem(page.Name, SelectPage)
+            {
+                Visuals = page.Visuals.Select(CloneVisual).ToList(),
+                Filters = page.Filters.Select(CloneFilter).ToList(),
+            });
+        }
+
+        SelectPage(Pages[0]);
+    }
+
+    private void EnsureDefaultPage()
+    {
+        if (Pages.Count > 0)
+            return;
+        var page = new ReportPageItem("Страница 1", SelectPage);
+        Pages.Add(page);
+        SelectedPage = page;
+        page.IsSelected = true;
+    }
+
+    private void FlushSelectedPage()
+    {
+        if (SelectedPage is null)
+            return;
+        SelectedPage.Visuals = GetVisualDefinitions();
+        SelectedPage.Filters = GetFilterDefinitions();
+    }
+
+    private void SelectPage(ReportPageItem page)
+    {
+        if (SelectedPage == page && Visuals.Count == page.Visuals.Count)
+        {
+            // Уже активна при первичной загрузке через SelectPage после создания — всё равно загрузим.
+        }
+
+        if (SelectedPage is not null && SelectedPage != page)
+            FlushSelectedPage();
+
+        if (SelectedPage is not null)
+            SelectedPage.IsSelected = false;
+        SelectedPage = page;
+        page.IsSelected = true;
+
+        SelectedVisual = null;
+        foreach (var visual in Visuals)
+            visual.PropertyChanged -= OnVisualPropertyChanged;
+        Visuals.Clear();
+        Filters.Clear();
+
+        foreach (var filter in page.Filters)
             Filters.Add(new FilterItemViewModel(filter, RemoveFilter));
         OnPropertyChanged(nameof(HasFilters));
-        foreach (var definition in visuals)
+
+        foreach (var definition in page.Visuals)
         {
             var visual = Create(definition);
             visual.PropertyChanged += OnVisualPropertyChanged;
             Visuals.Add(visual);
         }
-        // Обновляем после добавления всех визуалов, чтобы срезы уже действовали.
         foreach (var visual in Visuals)
             visual.OnModelChanged();
+        UpdateBoardSize();
     }
+
+    [RelayCommand]
+    private void AddPage()
+    {
+        FlushSelectedPage();
+        var name = $"Страница {Pages.Count + 1}";
+        var page = new ReportPageItem(name, SelectPage);
+        Pages.Add(page);
+        OnPropertyChanged(nameof(CanDeletePage));
+        SelectPage(page);
+    }
+
+    [RelayCommand]
+    private async Task RenamePageAsync()
+    {
+        if (SelectedPage is null)
+            return;
+        var name = await _dialogs.PromptAsync("Переименовать страницу", "Название страницы", SelectedPage.Name);
+        if (string.IsNullOrWhiteSpace(name))
+            return;
+        SelectedPage.Name = name.Trim();
+    }
+
+    [RelayCommand]
+    private async Task DeletePageAsync()
+    {
+        if (SelectedPage is null || Pages.Count <= 1)
+            return;
+        if (!await _dialogs.ConfirmAsync("Удалить страницу",
+                $"Удалить «{SelectedPage.Name}» вместе с визуалами?"))
+            return;
+        var index = Pages.IndexOf(SelectedPage);
+        Pages.Remove(SelectedPage);
+        OnPropertyChanged(nameof(CanDeletePage));
+        SelectedPage = null;
+        SelectPage(Pages[Math.Clamp(index, 0, Pages.Count - 1)]);
+    }
+
+    private static VisualDefinition CloneVisual(VisualDefinition v) => new()
+    {
+        Id = v.Id,
+        Kind = v.Kind,
+        Title = v.Title,
+        Table = v.Table,
+        CategoryField = v.CategoryField,
+        ColumnField = v.ColumnField,
+        ValueFields = [..v.ValueFields],
+        Aggregation = v.Aggregation,
+        DateGranularity = v.DateGranularity,
+        TopN = v.TopN,
+        ShowLegend = v.ShowLegend,
+        ShowDataLabels = v.ShowDataLabels,
+        SelectedValues = [..v.SelectedValues],
+        X = v.X,
+        Y = v.Y,
+        Width = v.Width,
+        Height = v.Height,
+    };
+
+    private static FilterDefinition CloneFilter(FilterDefinition f) => new()
+    {
+        Table = f.Table,
+        Column = f.Column,
+        Operator = f.Operator,
+        Value = f.Value,
+        Values = [..f.Values],
+    };
 }

@@ -37,7 +37,7 @@ public class SampleReportTests
         Assert.Equal(3, model.Relationships.Count);
         Assert.Empty(model.RelationshipIssues);
         var query = new ModelQuery(model);
-        foreach (var visual in report.Visuals)
+        foreach (var visual in report.Pages.SelectMany(p => p.Visuals))
         {
             var table = model.GetTable(visual.Table);
             Assert.NotNull(table);

@@ -440,7 +440,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             var report = ReportSerializer.Load(path);
             Report.Clear();
             var errors = Model.Load(report.Sources, report.Steps, report.Relationships, report.TableLayouts);
-            Report.Load(report.Visuals, report.Filters);
+            Report.LoadPages(report.Pages);
             ReportPath = path;
             CurrentPage = Report;
             Status = $"Открыт отчёт: {Path.GetFileName(path)}";
@@ -487,8 +487,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 Steps = Model.Steps,
                 Relationships = Model.Relationships,
                 TableLayouts = Model.TableLayouts,
-                Visuals = Report.GetVisualDefinitions(),
-                Filters = Report.GetFilterDefinitions(),
+                Pages = Report.GetPages(),
             }, path);
             ReportPath = path;
             Status = $"Сохранено: {path}";

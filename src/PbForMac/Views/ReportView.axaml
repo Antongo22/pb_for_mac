@@ -68,7 +68,48 @@
     <GridSplitter Grid.Column="1" Classes="paneSplitter" />
 
     <!-- Холст -->
-    <ScrollViewer Grid.Column="2" x:Name="Scroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+    <Grid Grid.Column="2">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+      </Grid.RowDefinitions>
+
+      <Border Grid.Row="0" Background="{DynamicResource PanelBrush}"
+              BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="8,4">
+        <Grid ColumnDefinitions="*,Auto">
+          <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Pages}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Orientation="Horizontal" Spacing="4" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:ReportPageItem">
+                  <Button Classes="flat pageTab" Classes.selected="{Binding IsSelected}"
+                          Padding="10,4" MinWidth="80" Command="{Binding Select}">
+                    <TextBlock Text="{Binding Name}" FontSize="12" />
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
+            <Button Classes="icon" Command="{Binding AddPageCommand}" ToolTip.Tip="Добавить страницу">
+              <PathIcon Data="{StaticResource IconAdd}" Width="14" Height="14" />
+            </Button>
+            <Button Classes="icon" Command="{Binding RenamePageCommand}" ToolTip.Tip="Переименовать страницу">
+              <TextBlock Text="Aa" FontSize="11" FontWeight="SemiBold" />
+            </Button>
+            <Button Classes="icon" Command="{Binding DeletePageCommand}" IsEnabled="{Binding CanDeletePage}"
+                    ToolTip.Tip="Удалить страницу">
+              <PathIcon Data="{StaticResource IconClose}" Width="12" Height="12" />
+            </Button>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <ScrollViewer Grid.Row="1" x:Name="Scroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                   Background="{DynamicResource WorkspaceBrush}">
       <LayoutTransformControl Margin="24" HorizontalAlignment="Left" VerticalAlignment="Top">
         <LayoutTransformControl.LayoutTransform>
@@ -117,7 +158,7 @@
     </ScrollViewer>
 
     <!-- Масштаб -->
-    <Border Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,20,16" Padding="8,2"
+    <Border Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,20,16" Padding="8,2"
             CornerRadius="4" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
       <StackPanel Orientation="Horizontal" Spacing="8">
         <ToggleButton IsChecked="{Binding FitToWidth}" Content="По ширине" Padding="8,2" FontSize="12"
@@ -126,6 +167,7 @@
         <TextBlock Text="{Binding ZoomText}" Width="40" VerticalAlignment="Center" FontSize="12" />
       </StackPanel>
     </Border>
+    </Grid>
 
     <!-- Правая панель -->
     <GridSplitter Grid.Column="3" Classes="paneSplitter" />

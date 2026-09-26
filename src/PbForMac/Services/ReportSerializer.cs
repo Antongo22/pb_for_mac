@@ -53,6 +53,29 @@ public static class ReportSerializer
                      ?? throw new InvalidDataException("Файл отчёта пуст.");
         if (report.Version > ReportDefinition.CurrentVersion)
             throw new InvalidDataException("Отчёт создан в более новой версии приложения.");
+        MigratePages(report);
         return report;
+    }
+
+    /// <summary>v1: плоские Visuals/Filters → одна страница «Страница 1».</summary>
+    public static void MigratePages(ReportDefinition report)
+    {
+        if (report.Pages.Count == 0)
+        {
+            report.Pages.Add(new ReportPage
+            {
+                Name = "Страница 1",
+                Visuals = report.Visuals ?? [],
+                Filters = report.Filters ?? [],
+            });
+        }
+        else
+        {
+            // Если в файле и Pages, и плоские поля — плоские игнорируем (уже в Pages).
+        }
+
+        report.Visuals = [];
+        report.Filters = [];
+        report.Version = ReportDefinition.CurrentVersion;
     }
 }

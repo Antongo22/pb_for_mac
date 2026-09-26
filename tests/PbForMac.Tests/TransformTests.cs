@@ -293,7 +293,7 @@ public class TransformTests
         Assert.Equal(["x"], ((RemoveBlankRowsStep)restored.Steps[10]).Columns);
         Assert.Equal(";", ((SplitColumnStep)restored.Steps[11]).Delimiter);
         Assert.True(((SortRowsStep)restored.Steps[12]).Descending);
-        Assert.Equal(VisualKind.Pie, restored.Visuals[0].Kind);
+        Assert.Equal(VisualKind.Pie, restored.Pages[0].Visuals[0].Kind);
     }
 
     [Fact]
@@ -548,7 +548,27 @@ public class TransformTests
 
         var restored = ReportSerializer.Deserialize(ReportSerializer.Serialize(report));
         Assert.False(restored.Steps[0].Enabled);
-        Assert.False(restored.Visuals[0].ShowLegend);
-        Assert.True(restored.Visuals[0].ShowDataLabels);
+        Assert.False(restored.Pages[0].Visuals[0].ShowLegend);
+        Assert.True(restored.Pages[0].Visuals[0].ShowDataLabels);
+    }
+
+    [Fact]
+    public void ReportSerializer_MigratesFlatVisualsToPages()
+    {
+        var json = """
+            {
+              "version": 1,
+              "visuals": [{ "kind": "card", "table": "A", "valueFields": ["x"] }],
+              "filters": [{ "table": "A", "column": "x", "operator": "equals", "value": "1" }]
+            }
+            """;
+        var restored = ReportSerializer.Deserialize(json);
+        Assert.Equal(2, restored.Version);
+        Assert.Single(restored.Pages);
+        Assert.Equal("Страница 1", restored.Pages[0].Name);
+        Assert.Equal(VisualKind.Card, restored.Pages[0].Visuals[0].Kind);
+        Assert.Single(restored.Pages[0].Filters);
+        Assert.Empty(restored.Visuals);
+        Assert.Empty(restored.Filters);
     }
 }
