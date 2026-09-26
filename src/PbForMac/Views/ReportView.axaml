@@ -183,6 +183,20 @@
                     </Border>
                   </StackPanel>
 
+                  <StackPanel IsVisible="{Binding ShowsColumnField}" Margin="0,8,0,0">
+                    <TextBlock Classes="caption" Text="Столбцы" />
+                    <Border Classes="fieldWell" Name="ColumnWell" Tag="column"
+                            DragDrop.AllowDrop="True">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <ComboBox ItemsSource="{Binding CategoryOptions}" SelectedItem="{Binding ColumnField}"
+                                  PlaceholderText="Поле столбцов матрицы" BorderThickness="0" Background="Transparent" />
+                        <Button Grid.Column="1" Classes="icon" Margin="4,0,0,0" Command="{Binding ClearColumnField}" ToolTip.Tip="Очистить">
+                          <PathIcon Data="{StaticResource IconClose}" />
+                        </Button>
+                      </Grid>
+                    </Border>
+                  </StackPanel>
+
                   <StackPanel IsVisible="{Binding ShowsGranularity}">
                     <TextBlock Classes="caption" Text="Детализация дат" />
                     <ComboBox ItemsSource="{Binding Granularities}" SelectedItem="{Binding Granularity}" />

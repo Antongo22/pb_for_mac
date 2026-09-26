@@ -154,6 +154,8 @@ public partial class ReportView : UserControl
             return;
         if (well.Tag as string == "category")
             visual.AssignFieldToCategory(parts[0], parts[1]);
+        else if (well.Tag as string == "column")
+            visual.AssignFieldToColumn(parts[0], parts[1]);
         else
             visual.AssignFieldToValues(parts[0], parts[1]);
         e.Handled = true;
@@ -164,7 +166,7 @@ public partial class ReportView : UserControl
         for (var v = source; v is not null; v = v.GetVisualParent())
         {
             if (v is Border { Classes: var c } border && c.Contains("fieldWell")
-                && border.Tag is "category" or "values")
+                && border.Tag is "category" or "values" or "column")
                 return border;
         }
         return null;

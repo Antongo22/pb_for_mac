@@ -10,6 +10,12 @@ public sealed record AggregatedResult(IReadOnlyList<string> Categories, IReadOnl
     public static AggregatedResult Empty { get; } = new([], [], []);
 }
 
+/// <summary>Двумерная агрегация: строки × столбцы × ячейка.</summary>
+public sealed record MatrixResult(IReadOnlyList<string> RowLabels, IReadOnlyList<string> ColumnLabels, IReadOnlyList<double[]> Cells)
+{
+    public static MatrixResult Empty { get; } = new([], [], []);
+}
+
 /// <summary>
 /// Поле, из которого можно получить значение для строки основной таблицы:
 /// её собственный столбец или столбец связанной таблицы (через связи).
@@ -237,6 +243,72 @@ public static class QueryEngine
             .Select(i => ordered.Select(g => g.Values[i]).ToArray())
             .ToList();
         return new AggregatedResult(ordered.Select(g => CategoryLabel(g.Key, granularity)).ToList(), names, series);
+    }
+
+    /// <summary>
+    /// Сводная матрица: группировка по полю строк и полю столбцов, одна агрегация в ячейках.
+    /// Без поля значений — количество строк.
+    /// </summary>
+    public static MatrixResult AggregateBy2D(
+        IEnumerable<DataRow> rows, ResolvedField rowField, ResolvedField columnField,
+        ResolvedField? valueField, Aggregation aggregation,
+        DateGranularity rowGranularity = DateGranularity.Month,
+        DateGranularity columnGranularity = DateGranularity.Month,
+        int topN = 0)
+    {
+        var rowList = rows.ToList();
+        var cells = rowList
+            .GroupBy(r => (
+                Row: CategoryKey(rowField.Get(r), rowGranularity),
+                Col: CategoryKey(columnField.Get(r), columnGranularity)))
+            .ToDictionary(
+                g => g.Key,
+                g => valueField is null
+                    ? (double)g.Count()
+                    : Aggregate(g.Select(valueField.Get), aggregation));
+
+        if (cells.Count == 0)
+            return MatrixResult.Empty;
+
+        var rowType = TypeInference.FromClr(rowField.DataType);
+        var colType = TypeInference.FromClr(columnField.DataType);
+
+        var rowKeys = cells.Keys.Select(k => k.Row).Distinct()
+            .OrderBy(k => k, Comparer<object>.Create(Compare)).ToList();
+        var colKeys = cells.Keys.Select(k => k.Col).Distinct()
+            .OrderBy(k => k, Comparer<object>.Create(Compare)).ToList();
+
+        // Для текста упорядочиваем по сумме строки/столбца (как в AggregateBy).
+        if (rowType == ColumnType.Text)
+        {
+            rowKeys = rowKeys
+                .OrderByDescending(rk => colKeys.Sum(ck => cells.GetValueOrDefault((rk, ck), double.NaN) is var v && !double.IsNaN(v) ? v : 0))
+                .ToList();
+        }
+        if (colType == ColumnType.Text)
+        {
+            colKeys = colKeys
+                .OrderByDescending(ck => rowKeys.Sum(rk => cells.GetValueOrDefault((rk, ck), double.NaN) is var v && !double.IsNaN(v) ? v : 0))
+                .ToList();
+        }
+
+        if (topN > 0 && rowKeys.Count > topN)
+        {
+            rowKeys = rowKeys
+                .OrderByDescending(rk => colKeys.Sum(ck => cells.GetValueOrDefault((rk, ck), double.NaN) is var v && !double.IsNaN(v) ? v : 0))
+                .Take(topN)
+                .ToList();
+            if (rowType is ColumnType.Date or ColumnType.Integer or ColumnType.Decimal)
+                rowKeys = rowKeys.OrderBy(k => k, Comparer<object>.Create(Compare)).ToList();
+        }
+
+        var matrix = rowKeys
+            .Select(rk => colKeys.Select(ck => cells.GetValueOrDefault((rk, ck), double.NaN)).ToArray())
+            .ToList();
+        return new MatrixResult(
+            rowKeys.Select(k => CategoryLabel(k, rowGranularity)).ToList(),
+            colKeys.Select(k => CategoryLabel(k, columnGranularity)).ToList(),
+            matrix);
     }
 
     /// <summary>Создаёт новую таблицу, сгруппированную по ключевым столбцам.</summary>

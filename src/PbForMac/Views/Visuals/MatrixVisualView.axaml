@@ -1,0 +1,8 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vis="using:PbForMac.ViewModels.Visuals"
+             xmlns:controls="using:PbForMac.Controls"
+             x:Class="PbForMac.Views.Visuals.MatrixVisualView"
+             x:DataType="vis:MatrixVisualViewModel">
+  <controls:DataTableGrid Source="{Binding Slice}" />
+</UserControl>

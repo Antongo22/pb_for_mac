@@ -68,6 +68,7 @@ public static class Labels
         new(VisualKind.Scatter, "Точечная"),
         new(VisualKind.Card, "Карточка"),
         new(VisualKind.Table, "Таблица"),
+        new(VisualKind.Matrix, "Матрица"),
         new(VisualKind.Slicer, "Срез"),
     ];
 

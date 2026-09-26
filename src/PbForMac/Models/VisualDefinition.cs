@@ -10,6 +10,7 @@ public enum VisualKind
     Scatter,
     Card,
     Table,
+    Matrix,
     Slicer,
 }
 
@@ -21,8 +22,11 @@ public sealed class VisualDefinition
     public string Title { get; set; } = "";
     public string? Table { get; set; }
 
-    /// <summary>Поле оси/категории (для точечной диаграммы — ось X).</summary>
+    /// <summary>Поле оси/категории (для точечной диаграммы — ось X; для матрицы — строки).</summary>
     public string? CategoryField { get; set; }
+
+    /// <summary>Поле столбцов матрицы (заголовки колонок сводной таблицы).</summary>
+    public string? ColumnField { get; set; }
 
     /// <summary>Поля значений; каждое поле — отдельная серия.</summary>
     public List<string> ValueFields { get; set; } = [];

@@ -27,6 +27,7 @@ public abstract partial class VisualViewModel : ViewModelBase
         _height = definition.Height;
         _table = definition.Table;
         _categoryField = definition.CategoryField;
+        _columnField = definition.ColumnField;
         _aggregation = Labels.Find(definition.Aggregation);
         _granularity = Labels.Find(definition.DateGranularity);
         _topN = definition.TopN;
@@ -78,6 +79,9 @@ public abstract partial class VisualViewModel : ViewModelBase
     private string? _categoryField;
 
     [ObservableProperty]
+    private string? _columnField;
+
+    [ObservableProperty]
     private Option<Aggregation> _aggregation;
 
     [ObservableProperty]
@@ -112,6 +116,7 @@ public abstract partial class VisualViewModel : ViewModelBase
     public virtual string CategoryCaption => "Ось";
     public virtual string ValuesCaption => "Значения";
     public virtual bool ShowsCategory => true;
+    public virtual bool ShowsColumnField => false;
     public virtual bool ShowsValues => true;
     public virtual bool ShowsAggregation => true;
     public virtual bool ShowsTopN => true;
@@ -218,6 +223,7 @@ public abstract partial class VisualViewModel : ViewModelBase
         Definition.ValueFields.Clear();
         Definition.SelectedValues.Clear();
         CategoryField = null;
+        ColumnField = null;
         UpdateFieldOptions();
         _loading = false;
         Refresh();
@@ -232,6 +238,13 @@ public abstract partial class VisualViewModel : ViewModelBase
         Definition.SelectedValues.Clear();
         Refresh();
         Owner.OnVisualFiltersChanged(this);
+    }
+
+    partial void OnColumnFieldChanged(string? value)
+    {
+        Definition.ColumnField = value;
+        if (!_loading)
+            Refresh();
     }
 
     partial void OnAggregationChanged(Option<Aggregation> value)
@@ -265,6 +278,7 @@ public abstract partial class VisualViewModel : ViewModelBase
     }
 
     public void ClearCategory() => CategoryField = null;
+    public void ClearColumnField() => ColumnField = null;
 
     /// <summary>Назначает поле в колодец категории (перетаскивание).</summary>
     public void AssignFieldToCategory(string tableName, string columnName)
@@ -274,6 +288,16 @@ public abstract partial class VisualViewModel : ViewModelBase
         if (!string.Equals(Table, tableName, StringComparison.OrdinalIgnoreCase))
             Table = tableName;
         CategoryField = ResolveFieldRef(tableName, columnName);
+    }
+
+    /// <summary>Назначает поле в колодец столбцов матрицы.</summary>
+    public void AssignFieldToColumn(string tableName, string columnName)
+    {
+        if (!ShowsColumnField)
+            return;
+        if (!string.Equals(Table, tableName, StringComparison.OrdinalIgnoreCase))
+            Table = tableName;
+        ColumnField = ResolveFieldRef(tableName, columnName);
     }
 
     /// <summary>Добавляет/включает поле в колодец значений (перетаскивание).</summary>
@@ -340,6 +364,12 @@ public abstract partial class VisualViewModel : ViewModelBase
         if (ShowsCategory && CategoryField is null)
         {
             CategoryField = fieldRef;
+            return;
+        }
+
+        if (ShowsColumnField && ColumnField is null)
+        {
+            ColumnField = fieldRef;
             return;
         }
 

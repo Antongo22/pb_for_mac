@@ -84,6 +84,31 @@ public class QueryEngineTests
     }
 
     [Fact]
+    public void AggregateBy2D_BuildsRegionByMonthMatrix()
+    {
+        var table = TestData.Sales();
+        var rows = table.Rows.Cast<System.Data.DataRow>();
+        var region = ResolvedField.FromColumn(table.Columns["Регион"]!);
+        var date = ResolvedField.FromColumn(table.Columns["Дата"]!);
+        var qty = ResolvedField.FromColumn(table.Columns["Кол-во"]!);
+
+        var matrix = QueryEngine.AggregateBy2D(rows, region, date, qty, Aggregation.Sum,
+            DateGranularity.Month, DateGranularity.Month);
+
+        Assert.Contains("Север", matrix.RowLabels);
+        Assert.Contains("Запад", matrix.RowLabels);
+        Assert.True(matrix.ColumnLabels.Count >= 2);
+        Assert.Equal(matrix.RowLabels.Count, matrix.Cells.Count);
+        Assert.All(matrix.Cells, row => Assert.Equal(matrix.ColumnLabels.Count, row.Length));
+
+        var west = matrix.RowLabels.ToList().IndexOf("Запад");
+        var apr = matrix.ColumnLabels.ToList().FindIndex(l => l.Contains("апр", StringComparison.OrdinalIgnoreCase)
+            || l.Contains("Apr", StringComparison.OrdinalIgnoreCase));
+        Assert.True(west >= 0 && apr >= 0);
+        Assert.Equal(10d, matrix.Cells[west][apr]);
+    }
+
+    [Fact]
     public void GroupBy_CreatesAggregatedTable()
     {
         var table = TestData.Sales();

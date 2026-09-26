@@ -64,6 +64,9 @@ public sealed partial class ReportViewModel : ViewModelBase
             new(VisualKind.Table, "Таблица",
                 "M3,4 H21 V20 H3 Z M5,9 V12 H11 V9 Z M13,9 V12 H19 V9 Z M5,14 V18 H11 V14 Z M13,14 V18 H19 V14 Z",
                 AddOrChangeVisual),
+            new(VisualKind.Matrix, "Матрица",
+                "M3,4 H21 V20 H3 Z M3,9 H21 M3,14 H21 M9,4 V20 M15,4 V20",
+                AddOrChangeVisual),
             new(VisualKind.Slicer, "Срез",
                 "M3,4 H8 V9 H3 Z M10,5.5 H21 V7.5 H10 Z M3,10 H8 V15 H3 Z M10,11.5 H21 V13.5 H10 Z M3,16 H8 V21 H3 Z M10,17.5 H21 V19.5 H10 Z",
                 AddOrChangeVisual),
@@ -327,6 +330,7 @@ public sealed partial class ReportViewModel : ViewModelBase
     {
         VisualKind.Card => new CardVisualViewModel(definition, this),
         VisualKind.Table => new TableVisualViewModel(definition, this),
+        VisualKind.Matrix => new MatrixVisualViewModel(definition, this),
         VisualKind.Slicer => new SlicerVisualViewModel(definition, this),
         _ => new ChartVisualViewModel(definition, this),
     };
@@ -349,7 +353,7 @@ public sealed partial class ReportViewModel : ViewModelBase
     {
         VisualKind.Card => (240, 140),
         VisualKind.Slicer => (240, 300),
-        VisualKind.Table => (500, 300),
+        VisualKind.Table or VisualKind.Matrix => (500, 300),
         _ => (460, 300),
     };
 
@@ -405,6 +409,14 @@ public sealed partial class ReportViewModel : ViewModelBase
                 break;
             case VisualKind.Table:
                 definition.CategoryField = null;
+                definition.ColumnField = null;
+                break;
+            case VisualKind.Matrix:
+                definition.CategoryField = texts.ElementAtOrDefault(0)?.ColumnName;
+                definition.ColumnField = texts.ElementAtOrDefault(1)?.ColumnName
+                    ?? dates.FirstOrDefault()?.ColumnName
+                    ?? texts.ElementAtOrDefault(0)?.ColumnName;
+                if (numeric.Count > 0) definition.ValueFields.Add(numeric[^1].ColumnName);
                 break;
             default:
                 definition.CategoryField = (texts.FirstOrDefault() ?? dates.FirstOrDefault())?.ColumnName;
