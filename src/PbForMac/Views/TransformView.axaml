@@ -329,6 +329,21 @@
                           IsEnabled="{Binding SelectedDiagramLink, Converter={x:Static ObjectConverters.IsNotNull}}" />
                 </StackPanel>
                 <TextBlock Classes="hint" Text="{Binding DiagramHint}" IsVisible="{Binding DiagramHint, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                <StackPanel Spacing="6" IsVisible="{Binding SelectedDiagramLink, Converter={x:Static ObjectConverters.IsNotNull}}"
+                            Margin="0,4,0,0">
+                  <TextBlock Classes="caption" Text="Выбранная связь" />
+                  <TextBlock Text="{Binding SelectedDiagramLink.Tooltip}" FontSize="12" TextWrapping="Wrap" />
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <StackPanel Spacing="4">
+                      <TextBlock Classes="hint" Text="Кардинальность" />
+                      <ComboBox ItemsSource="{Binding Cardinalities}" SelectedItem="{Binding SelectedCardinality}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="4">
+                      <TextBlock Classes="hint" Text="Направление фильтра" />
+                      <ComboBox ItemsSource="{Binding FilterDirections}" SelectedItem="{Binding SelectedFilterDirection}" />
+                    </StackPanel>
+                  </Grid>
+                </StackPanel>
               </StackPanel>
 
               <Expander DockPanel.Dock="Bottom" Header="Добавить связь вручную" IsExpanded="{Binding !HasRelationships}" Margin="0,8,0,0">

@@ -5,12 +5,12 @@ namespace PbForMac.Services;
 
 /// <summary>
 /// Запросы к модели с учётом связей: поля связанных таблиц («Таблица[Столбец]») и фильтры,
-/// которые распространяются по связям от таблицы «один» к таблице «многие» (как в Power BI).
-/// Создаётся заново при каждом изменении модели: справочники для поиска по ключу кэшируются.
+/// которые распространяются по связям (по умолчанию от «один» к «многие»; при Both — в обе стороны).
 /// </summary>
 public sealed class ModelQuery(DataModel model)
 {
     private readonly Dictionary<RelationshipDefinition, Dictionary<string, DataRow>> _lookups = [];
+    private readonly Dictionary<RelationshipDefinition, Dictionary<string, DataRow>> _reverseLookups = [];
 
     public DataModel Model => model;
 
@@ -19,46 +19,97 @@ public sealed class ModelQuery(DataModel model)
         model.GetTable(r.FromTable)?.Columns.Contains(r.FromColumn) == true
         && model.GetTable(r.ToTable)?.Columns.Contains(r.ToColumn) == true);
 
+    private readonly record struct EdgeHop(RelationshipDefinition Relationship, bool Forward);
+
     /// <summary>
-    /// Кратчайший путь по связям от таблицы «многие» к таблице «один» (возможно, через промежуточные таблицы).
-    /// Пустой путь — та же таблица; null — таблицы не связаны в этом направлении.
+    /// Кратчайший путь по связям от from к to. Вперёд — всегда From→To;
+    /// назад — если FilterDirection.Both (или для доступа к полям при 1:1).
     /// </summary>
     public IReadOnlyList<RelationshipDefinition>? FindPath(string from, string to)
     {
         if (string.Equals(from, to, StringComparison.OrdinalIgnoreCase))
             return [];
-        var edges = UsableRelationships.ToList();
-        var previous = new Dictionary<string, RelationshipDefinition>(StringComparer.OrdinalIgnoreCase);
+
+        var hops = BuildHops().ToList();
+        var previous = new Dictionary<string, EdgeHop>(StringComparer.OrdinalIgnoreCase);
         var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { from };
         var queue = new Queue<string>([from]);
         while (queue.Count > 0)
         {
             var table = queue.Dequeue();
-            foreach (var edge in edges.Where(e => string.Equals(e.FromTable, table, StringComparison.OrdinalIgnoreCase)))
+            foreach (var hop in hops.Where(h =>
+                         string.Equals(Start(h), table, StringComparison.OrdinalIgnoreCase)))
             {
-                if (!visited.Add(edge.ToTable))
+                var next = End(hop);
+                if (!visited.Add(next))
                     continue;
-                previous[edge.ToTable] = edge;
-                if (string.Equals(edge.ToTable, to, StringComparison.OrdinalIgnoreCase))
+                previous[next] = hop;
+                if (string.Equals(next, to, StringComparison.OrdinalIgnoreCase))
                 {
                     var path = new List<RelationshipDefinition>();
-                    for (var current = edge.ToTable; previous.TryGetValue(current, out var step); current = step.FromTable)
-                        path.Insert(0, step);
+                    for (var current = next; previous.TryGetValue(current, out var step); current = Start(step))
+                        path.Insert(0, step.Relationship);
                     return path;
                 }
-                queue.Enqueue(edge.ToTable);
+                queue.Enqueue(next);
             }
         }
         return null;
     }
 
-    /// <summary>Таблицы, до которых можно дойти по связям от указанной (её справочники), в порядке близости.</summary>
+    /// <summary>Путь с направлением каждого шага (для навигации в обе стороны).</summary>
+    private IReadOnlyList<EdgeHop>? FindHopPath(string from, string to)
+    {
+        if (string.Equals(from, to, StringComparison.OrdinalIgnoreCase))
+            return [];
+
+        var hops = BuildHops().ToList();
+        var previous = new Dictionary<string, EdgeHop>(StringComparer.OrdinalIgnoreCase);
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { from };
+        var queue = new Queue<string>([from]);
+        while (queue.Count > 0)
+        {
+            var table = queue.Dequeue();
+            foreach (var hop in hops.Where(h =>
+                         string.Equals(Start(h), table, StringComparison.OrdinalIgnoreCase)))
+            {
+                var next = End(hop);
+                if (!visited.Add(next))
+                    continue;
+                previous[next] = hop;
+                if (string.Equals(next, to, StringComparison.OrdinalIgnoreCase))
+                {
+                    var path = new List<EdgeHop>();
+                    for (var current = next; previous.TryGetValue(current, out var step); current = Start(step))
+                        path.Insert(0, step);
+                    return path;
+                }
+                queue.Enqueue(next);
+            }
+        }
+        return null;
+    }
+
+    private IEnumerable<EdgeHop> BuildHops()
+    {
+        foreach (var r in UsableRelationships)
+        {
+            yield return new EdgeHop(r, Forward: true);
+            if (r.FilterDirection == FilterDirection.Both || r.Cardinality == RelationshipCardinality.OneToOne)
+                yield return new EdgeHop(r, Forward: false);
+        }
+    }
+
+    private static string Start(EdgeHop hop) => hop.Forward ? hop.Relationship.FromTable : hop.Relationship.ToTable;
+    private static string End(EdgeHop hop) => hop.Forward ? hop.Relationship.ToTable : hop.Relationship.FromTable;
+
+    /// <summary>Таблицы, до которых можно дойти по связям от указанной, в порядке близости.</summary>
     public IReadOnlyList<DataTable> RelatedTables(DataTable table) =>
         model.Tables.Where(t => t != table && FindPath(table.TableName, t.TableName) is not null)
             .OrderBy(t => FindPath(table.TableName, t.TableName)!.Count)
             .ToList();
 
-    /// <summary>Поля для визуала таблицы: её столбцы и столбцы связанных справочников («Таблица[Столбец]»).</summary>
+    /// <summary>Поля для визуала таблицы: её столбцы и столбцы связанных таблиц («Таблица[Столбец]»).</summary>
     public IReadOnlyList<string> AvailableFields(DataTable table) =>
         table.Columns.Cast<DataColumn>().Select(c => c.ColumnName)
             .Concat(RelatedTables(table).SelectMany(t => t.Columns.Cast<DataColumn>().Select(c => FieldRef.Format(t.TableName, c.ColumnName))))
@@ -75,7 +126,7 @@ public sealed class ModelQuery(DataModel model)
             return table.Columns[columnName] is { } column ? ResolvedField.FromColumn(column) with { Ref = reference } : null;
 
         var target = model.GetTable(tableName);
-        if (target?.Columns[columnName] is not { } targetColumn || FindPath(table.TableName, target.TableName) is not { } path)
+        if (target?.Columns[columnName] is not { } targetColumn || FindHopPath(table.TableName, target.TableName) is not { } path)
             return null;
         var navigate = Navigator(path);
         var ordinal = targetColumn.Ordinal;
@@ -84,8 +135,8 @@ public sealed class ModelQuery(DataModel model)
     }
 
     /// <summary>
-    /// Строки таблицы, прошедшие фильтры. Фильтр своей таблицы проверяется напрямую, фильтр связанного
-    /// справочника — по строке справочника, найденной через связи. Фильтры несвязанных таблиц не действуют.
+    /// Строки таблицы, прошедшие фильтры. Фильтр своей таблицы проверяется напрямую, фильтр связанной
+    /// — по строке, найденной через связи. Фильтры несвязанных таблиц не действуют.
     /// </summary>
     public IEnumerable<DataRow> Filter(DataTable table, IEnumerable<FilterDefinition> filters)
     {
@@ -102,7 +153,7 @@ public sealed class ModelQuery(DataModel model)
                 continue;
             }
 
-            if (FindPath(table.TableName, filterTable.TableName) is not { } path || Resolve(filterTable, filter.Column) is not { } remoteField)
+            if (FindHopPath(table.TableName, filterTable.TableName) is not { } path || Resolve(filterTable, filter.Column) is not { } remoteField)
                 continue;
             var navigate = Navigator(path);
             var test = QueryEngine.BuildPredicate(remoteField, filter);
@@ -113,10 +164,20 @@ public sealed class ModelQuery(DataModel model)
         return predicates.Count == 0 ? rows : rows.Where(r => predicates.All(p => p(r)));
     }
 
-    /// <summary>Переход от строки таблицы «многие» по цепочке связей к строке последнего справочника.</summary>
-    private Func<DataRow, DataRow?> Navigator(IReadOnlyList<RelationshipDefinition> path)
+    private Func<DataRow, DataRow?> Navigator(IReadOnlyList<EdgeHop> path)
     {
-        var hops = path.Select(r => (Ordinal: model.GetTable(r.FromTable)!.Columns[r.FromColumn]!.Ordinal, Lookup: Lookup(r))).ToArray();
+        var hops = path.Select(hop =>
+        {
+            var r = hop.Relationship;
+            if (hop.Forward)
+            {
+                var ordinal = model.GetTable(r.FromTable)!.Columns[r.FromColumn]!.Ordinal;
+                return (Ordinal: ordinal, Lookup: Lookup(r));
+            }
+            var revOrdinal = model.GetTable(r.ToTable)!.Columns[r.ToColumn]!.Ordinal;
+            return (Ordinal: revOrdinal, Lookup: ReverseLookup(r));
+        }).ToArray();
+
         return row =>
         {
             DataRow? current = row;
@@ -145,5 +206,22 @@ public sealed class ModelQuery(DataModel model)
                 lookup.TryAdd(key, row);
         }
         return _lookups[relationship] = lookup;
+    }
+
+    /// <summary>Обратный справочник: ключ стороны «один» → первая строка стороны «многие».</summary>
+    private Dictionary<string, DataRow> ReverseLookup(RelationshipDefinition relationship)
+    {
+        if (_reverseLookups.TryGetValue(relationship, out var lookup))
+            return lookup;
+        var table = model.GetTable(relationship.FromTable)!;
+        var ordinal = table.Columns[relationship.FromColumn]!.Ordinal;
+        lookup = new Dictionary<string, DataRow>(StringComparer.OrdinalIgnoreCase);
+        foreach (DataRow row in table.Rows)
+        {
+            var key = QueryEngine.Key(row[ordinal]);
+            if (key.Length > 0)
+                lookup.TryAdd(key, row);
+        }
+        return _reverseLookups[relationship] = lookup;
     }
 }

@@ -58,6 +58,18 @@ public static class Labels
         new(JoinKind.Full, "Полное (все строки)"),
     ];
 
+    public static readonly IReadOnlyList<Option<RelationshipCardinality>> Cardinalities =
+    [
+        new(RelationshipCardinality.ManyToOne, "Многие к одному (*:1)"),
+        new(RelationshipCardinality.OneToOne, "Один к одному (1:1)"),
+    ];
+
+    public static readonly IReadOnlyList<Option<FilterDirection>> FilterDirections =
+    [
+        new(FilterDirection.ToFrom, "Один → многие"),
+        new(FilterDirection.Both, "Оба направления"),
+    ];
+
     public static readonly IReadOnlyList<Option<VisualKind>> VisualKinds =
     [
         new(VisualKind.Column, "Гистограмма"),
@@ -83,6 +95,8 @@ public static class Labels
             DateGranularity => (IEnumerable<Option<T>>)DateGranularities,
             FilterOperator => (IEnumerable<Option<T>>)FilterOperators,
             JoinKind => (IEnumerable<Option<T>>)JoinKinds,
+            RelationshipCardinality => (IEnumerable<Option<T>>)Cardinalities,
+            FilterDirection => (IEnumerable<Option<T>>)FilterDirections,
             VisualKind => (IEnumerable<Option<T>>)VisualKinds,
             _ => [],
         };

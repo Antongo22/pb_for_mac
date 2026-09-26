@@ -214,6 +214,17 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
     [ObservableProperty]
     private string? _diagramHint;
 
+    [ObservableProperty]
+    private Option<RelationshipCardinality> _selectedCardinality = Labels.Cardinalities[0];
+
+    [ObservableProperty]
+    private Option<FilterDirection> _selectedFilterDirection = Labels.FilterDirections[0];
+
+    public IReadOnlyList<Option<RelationshipCardinality>> Cardinalities => Labels.Cardinalities;
+    public IReadOnlyList<Option<FilterDirection>> FilterDirections => Labels.FilterDirections;
+
+    private bool _updatingLinkOptions;
+
     /// <summary>Первый клик по столбцу на диаграмме при создании связи.</summary>
     private (DiagramTableViewModel Table, DiagramColumnViewModel Column)? _linkStart;
 
@@ -403,6 +414,40 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
         var item = Relationships.FirstOrDefault(r => r.Relationship.SameAs(SelectedDiagramLink.Relationship));
         if (item is not null)
             await RemoveRelationshipAsync(item);
+    }
+
+    partial void OnSelectedDiagramLinkChanged(DiagramLinkViewModel? value)
+    {
+        if (value is null)
+            return;
+        _updatingLinkOptions = true;
+        SelectedCardinality = Labels.Find(value.Relationship.Cardinality);
+        SelectedFilterDirection = Labels.Find(value.Relationship.FilterDirection);
+        _updatingLinkOptions = false;
+    }
+
+    partial void OnSelectedCardinalityChanged(Option<RelationshipCardinality> value)
+    {
+        if (_updatingLinkOptions || SelectedDiagramLink is null)
+            return;
+        SelectedDiagramLink.Relationship.Cardinality = value.Value;
+        RefreshDiagramLinks();
+    }
+
+    partial void OnSelectedFilterDirectionChanged(Option<FilterDirection> value)
+    {
+        if (_updatingLinkOptions || SelectedDiagramLink is null)
+            return;
+        SelectedDiagramLink.Relationship.FilterDirection = value.Value;
+        RefreshDiagramLinks();
+    }
+
+    private void RefreshDiagramLinks()
+    {
+        var selected = SelectedDiagramLink?.Relationship;
+        OnModelChanged();
+        if (selected is not null)
+            SelectedDiagramLink = DiagramLinks.FirstOrDefault(l => l.Relationship.SameAs(selected));
     }
 
     partial void OnRelationshipFromTableChanged(string? value)

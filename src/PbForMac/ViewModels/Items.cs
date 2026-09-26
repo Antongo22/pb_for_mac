@@ -210,9 +210,17 @@ public sealed class RelationshipItemViewModel(
     public string FromText => FieldRef.Format(Relationship.FromTable, Relationship.FromColumn);
     public string ToText => FieldRef.Format(Relationship.ToTable, Relationship.ToColumn);
 
-    public string Details => matchRate is { } rate
-        ? $"многие к одному · в справочнике найдено {rate:P0} ключей"
-        : "многие к одному";
+    public string Details
+    {
+        get
+        {
+            var card = Relationship.Cardinality == RelationshipCardinality.OneToOne ? "один к одному" : "многие к одному";
+            var dir = Relationship.FilterDirection == FilterDirection.Both ? " · фильтр ↔" : "";
+            return matchRate is { } rate
+                ? $"{card}{dir} · в справочнике найдено {rate:P0} ключей"
+                : $"{card}{dir}";
+        }
+    }
 
     public string? Issue { get; } = issue;
     public bool HasIssue => Issue is not null;

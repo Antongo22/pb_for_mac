@@ -1,9 +1,24 @@
 namespace PbForMac.Models;
 
+public enum RelationshipCardinality
+{
+    ManyToOne,
+    OneToOne,
+}
+
 /// <summary>
-/// Связь «многие к одному»: каждая строка таблицы <see cref="FromTable"/> находит строку
-/// таблицы <see cref="ToTable"/> с тем же значением ключа. Фильтры таблицы «один» распространяются
-/// на таблицу «многие», а её столбцы доступны в визуалах таблицы «многие».
+/// Направление фильтра: <see cref="ToFrom"/> — только от «один» к «многие» (как раньше);
+/// <see cref="Both"/> — фильтр распространяется в обе стороны.
+/// </summary>
+public enum FilterDirection
+{
+    ToFrom,
+    Both,
+}
+
+/// <summary>
+/// Связь таблиц: по умолчанию «многие к одному». Фильтры стороны «один» распространяются
+/// на сторону «многие»; при <see cref="FilterDirection.Both"/> — и наоборот.
 /// </summary>
 public sealed class RelationshipDefinition
 {
@@ -14,6 +29,9 @@ public sealed class RelationshipDefinition
     /// <summary>Таблица на стороне «один» (справочник, например, товары).</summary>
     public string ToTable { get; set; } = "";
     public string ToColumn { get; set; } = "";
+
+    public RelationshipCardinality Cardinality { get; set; } = RelationshipCardinality.ManyToOne;
+    public FilterDirection FilterDirection { get; set; } = FilterDirection.ToFrom;
 
     public override string ToString() => $"{FieldRef.Format(FromTable, FromColumn)} → {FieldRef.Format(ToTable, ToColumn)}";
 

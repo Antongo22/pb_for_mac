@@ -89,9 +89,15 @@ public sealed partial class DiagramLinkViewModel : ObservableObject
     public string? Issue { get; }
     public bool HasIssue => Issue is not null;
 
-    public string Label => MatchRate is { } rate
-        ? $"* : 1 · {rate:P0}"
-        : "* : 1";
+    public string Label
+    {
+        get
+        {
+            var card = Relationship.Cardinality == RelationshipCardinality.OneToOne ? "1 : 1" : "* : 1";
+            var dir = Relationship.FilterDirection == FilterDirection.Both ? " ↔" : "";
+            return MatchRate is { } rate ? $"{card}{dir} · {rate:P0}" : $"{card}{dir}";
+        }
+    }
 
     public string Tooltip => HasIssue
         ? $"{Relationship}\n{Issue}"

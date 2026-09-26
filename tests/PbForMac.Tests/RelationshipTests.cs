@@ -141,6 +141,44 @@ public class RelationshipTests
     }
 
     [Fact]
+    public void Filter_BothDirection_FiltersDimensionFromFact()
+    {
+        var model = StarModel(detect: false);
+        model.AddRelationship(new RelationshipDefinition
+        {
+            FromTable = "sales", FromColumn = "ID_PRODUCT",
+            ToTable = "products", ToColumn = "ID_PRODUCT",
+            FilterDirection = FilterDirection.Both,
+        });
+        var query = new ModelQuery(model);
+
+        // Фильтр факта распространяется на справочник.
+        var products = query.Filter(model.GetTable("products")!,
+            [new FilterDefinition { Table = "sales", Column = "Qty", Operator = FilterOperator.Equals, Value = "7" }]).ToList();
+        Assert.Single(products);
+        Assert.Equal(2L, products[0]["ID_PRODUCT"]);
+        Assert.Equal("Candy", products[0]["Category"]);
+    }
+
+    [Fact]
+    public void OneToOne_ExposesReverseFields()
+    {
+        var model = StarModel(detect: false);
+        model.AddRelationship(new RelationshipDefinition
+        {
+            FromTable = "products", FromColumn = "ID_BRAND",
+            ToTable = "brands", ToColumn = "ID_BRAND",
+            Cardinality = RelationshipCardinality.OneToOne,
+        });
+        var query = new ModelQuery(model);
+        var brands = model.GetTable("brands")!;
+        Assert.Contains("products[Category]", query.AvailableFields(brands));
+        var field = query.Resolve(brands, "products[Category]");
+        Assert.NotNull(field);
+        Assert.Equal("Chocolate", field!.Get(brands.Rows[0]));
+    }
+
+    [Fact]
     public void Relationships_AreValidated_RemovedWithTable_AndSaved()
     {
         var model = StarModel();
