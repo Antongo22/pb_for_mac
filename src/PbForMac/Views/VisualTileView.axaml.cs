@@ -39,6 +39,9 @@ public partial class VisualTileView : UserControl
     private void OnAnyPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         ViewModel?.Select();
+        // Фокус на странице отчёта, чтобы работало удаление клавишей Delete/⌫.
+        if (e.Source is not TextBox)
+            this.FindAncestorOfType<ReportView>()?.Focus();
         e.Handled = true;
     }
 
