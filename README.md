@@ -47,9 +47,88 @@
 ![Тёмная тема](docs/report-dark.png)
 </details>
 
-## Быстрый старт
+## Установка
 
-Нужен [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
+Готовые сборки лежат на странице **[Releases](https://github.com/Antongo22/pb_for_mac/releases/latest)**.
+Приложение самодостаточное (self-contained): устанавливать .NET не нужно.
+
+| Система | Файл |
+|---|---|
+| macOS на Apple Silicon (M1 и новее) | `PbForMac-osx-arm64.zip` |
+| macOS на Intel | `PbForMac-osx-x64.zip` |
+| Windows 10/11 (x64) | `PbForMac-win-x64.zip` |
+| Windows на ARM | `PbForMac-win-arm64.zip` |
+| Linux x64 | `PbForMac-linux-x64.tar.gz` |
+| Linux ARM64 | `PbForMac-linux-arm64.tar.gz` |
+
+### macOS
+
+Требуется macOS 11 Big Sur или новее.
+
+1. Узнайте тип процессора:  → «Об этом Mac». «Чип Apple M…» — берите `osx-arm64`, «Процессор Intel» — `osx-x64`.
+2. Скачайте архив и распакуйте его (Safari делает это сам), затем перетащите **PbForMac.app** в папку **«Программы»**.
+3. Первый запуск. Приложение не нотаризовано Apple, поэтому macOS заблокирует его при первом открытии:
+   - **macOS 15 Sequoia и новее:** откройте PbForMac → в окне предупреждения нажмите «Готово» →
+     **Системные настройки → Конфиденциальность и безопасность** → внизу «PbForMac заблокировано» → **«Всё равно открыть»** → введите пароль.
+   - **macOS 14 и старше:** правый клик по PbForMac.app → **«Открыть»** → «Открыть».
+   - Если macOS пишет, что приложение **«повреждено»**, или вы предпочитаете Терминал, снимите карантин одной командой:
+
+     ```bash
+     xattr -dr com.apple.quarantine /Applications/PbForMac.app
+     ```
+
+4. Дальше приложение запускается как обычно: из Launchpad, Spotlight или Dock. Файлы отчётов `.pbm` открываются двойным кликом.
+
+**Удаление:** перетащите PbForMac.app из «Программ» в Корзину.
+
+### Windows
+
+Требуется Windows 10 (1809+) или Windows 11.
+
+1. Скачайте архив, откройте правым кликом → **«Извлечь всё…»**.
+2. В распакованной папке запустите **`install.cmd`**. Программа установится для текущего пользователя
+   в `%LOCALAPPDATA%\Programs\PbForMac`, права администратора не нужны. Установщик добавит ярлык в меню «Пуск»
+   и свяжет файлы `.pbm` с PbForMac. Чтобы добавить ярлык и на рабочий стол, выполните в этой папке `install.cmd -DesktopShortcut`.
+3. Если появится **«Windows защитил ваш компьютер»** (SmartScreen), нажмите **«Подробнее» → «Выполнить в любом случае»**:
+   у приложения нет платной цифровой подписи.
+4. Запускайте PbForMac из меню «Пуск».
+
+**Без установки (portable):** просто запустите `app\PbForMac.exe` из распакованной папки.
+
+**Удаление:** «Параметры → Приложения → Установленные приложения → PbForMac → Удалить» или `uninstall.cmd` из архива.
+
+### Linux
+
+Нужен графический сеанс X11 или Wayland (через XWayland). Пакеты обычно уже установлены в дистрибутивах с рабочим столом.
+Если приложение не запускается, установите зависимости:
+
+```bash
+# Debian / Ubuntu / Mint
+sudo apt install libx11-6 libice6 libsm6 libfontconfig1 libicu-dev
+# Fedora
+sudo dnf install libX11 libICE libSM fontconfig libicu
+# Arch / Manjaro
+sudo pacman -S libx11 libice libsm fontconfig icu
+```
+
+Установка для текущего пользователя (без `sudo`):
+
+```bash
+tar -xzf PbForMac-linux-x64.tar.gz
+cd PbForMac-linux-x64
+./install.sh
+```
+
+Скрипт копирует приложение в `~/.local/share/pbformac`, добавляет пункт в меню приложений, команду `pbformac`
+(в `~/.local/bin`) и тип файлов `.pbm`. Для установки в другой каталог укажите префикс: `PREFIX=/opt/pbformac ./install.sh`.
+
+**Без установки (portable):** `./app/PbForMac`.
+
+**Удаление:** `./install.sh --uninstall` из распакованной папки.
+
+### Из исходного кода
+
+Нужен [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0):
 
 ```bash
 git clone https://github.com/Antongo22/pb_for_mac.git
@@ -57,8 +136,11 @@ cd pb_for_mac
 dotnet run --project src/PbForMac
 ```
 
-Нажмите **«Пример»** на панели инструментов — откроется демо-отчёт `samples/demo.pbm`, построенный на данных всех пяти форматов.
-Отчёт или файл данных можно передать и аргументом: `dotnet run --project src/PbForMac -- samples/demo.pbm`.
+## Быстрый старт
+
+Запустите PbForMac и нажмите **«Пример»** на панели инструментов. Откроется демо-отчёт `samples/demo.pbm`,
+построенный на данных всех пяти форматов. Отчёт или файл данных можно открыть и из командной строки:
+`dotnet run --project src/PbForMac -- samples/demo.pbm` (или `pbformac файл.pbm` после установки на Linux).
 
 ### Как пользоваться
 
@@ -93,27 +175,29 @@ Convert([Количество], 'System.Double') / 12
 | Страницы Отчёт / Данные / Модель | ⌘1 / ⌘2 / ⌘3 | Ctrl+1 / Ctrl+2 / Ctrl+3 |
 | Удалить выбранный визуал | ⌫ | Delete |
 
-## Сборка приложения
+## Сборка пакетов
 
-**macOS (.app):**
-
-```bash
-scripts/publish-macos.sh            # Apple Silicon (osx-arm64)
-scripts/publish-macos.sh osx-x64    # Intel
-```
-
-Готовый `artifacts/<rid>/PbForMac.app` можно перенести в «Программы». Приложение подписано ad-hoc,
-поэтому при первом запуске откройте его через контекстное меню → «Открыть».
-
-**Windows / Linux:**
+Скрипт `scripts/package.sh` собирает тот же пакет, что публикуется в Releases, для любой платформы
+(на macOS/Linux, а на Windows — в Git Bash):
 
 ```bash
-dotnet publish src/PbForMac -c Release -r win-x64 --self-contained -o artifacts/win-x64
-dotnet publish src/PbForMac -c Release -r linux-x64 --self-contained -o artifacts/linux-x64
+scripts/package.sh osx-arm64     # artifacts/PbForMac-osx-arm64.zip  (PbForMac.app, только на macOS)
+scripts/package.sh osx-x64
+scripts/package.sh win-x64       # artifacts/PbForMac-win-x64.zip    (app\ + install.cmd)
+scripts/package.sh win-arm64
+scripts/package.sh linux-x64     # artifacts/PbForMac-linux-x64.tar.gz (app/ + install.sh)
+scripts/package.sh linux-arm64
 ```
 
-GitHub Actions собирает и тестирует проект на macOS, Linux и Windows; при публикации тега `v*` дополнительно
-собираются архивы `PbForMac.app` для arm64 и x64 (артефакты workflow).
+Только `.app` без архива: `scripts/publish-macos.sh [osx-arm64|osx-x64]` → `artifacts/<rid>/PbForMac.app`.
+
+**Выпуск релиза.** GitHub Actions на каждый push собирает и тестирует проект на macOS, Linux и Windows.
+Если отправить тег `v*`, он соберёт все шесть пакетов и создаст GitHub Release с ними:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
 
 ## Структура проекта
 
@@ -134,7 +218,8 @@ tests/PbForMac.Tests/   xUnit: импорт, типы, движки, модел�
 tools/SampleDataGenerator/  генератор демо-данных в samples/
 tools/Screenshots/          headless-скриншоты для README и иконка приложения
 samples/               демо-данные и отчёт demo.pbm
-scripts/               сборка .app для macOS
+scripts/               сборка пакетов (package.sh) и .app для macOS
+packaging/             установщики для Windows (install.cmd/.ps1) и Linux (install.sh, .desktop)
 ```
 
 Внутренняя модель данных — `System.Data.DataTable`: импортёры возвращают «сырые» значения, `TypeInference` приводит
