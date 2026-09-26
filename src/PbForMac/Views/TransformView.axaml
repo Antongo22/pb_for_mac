@@ -57,6 +57,18 @@
                 <TextBlock Text="Unpivot отмеченных" />
               </Button>
             </StackPanel>
+            <StackPanel IsVisible="{Binding HasTables}" Spacing="6">
+              <TextBlock Classes="caption" Text="Pivot (атрибут → столбцы)" />
+              <ComboBox ItemsSource="{Binding Columns}" SelectedValue="{Binding PivotAttributeColumn}"
+                        SelectedValueBinding="{ReflectionBinding Name}" PlaceholderText="Атрибут" />
+              <ComboBox ItemsSource="{Binding Columns}" SelectedValue="{Binding PivotValueColumn}"
+                        SelectedValueBinding="{ReflectionBinding Name}" PlaceholderText="Значение" />
+              <ComboBox ItemsSource="{Binding Aggregations}" SelectedItem="{Binding PivotAggregation}" />
+              <Button HorizontalAlignment="Stretch" Command="{Binding PivotColumnsCommand}"
+                      ToolTip.Tip="Свернуть атрибут/значение в столбцы">
+                <TextBlock Text="Pivot" />
+              </Button>
+            </StackPanel>
             <StackPanel IsVisible="{Binding HasColumn}" Spacing="6">
               <TextBlock Classes="caption" Text="Выбранный столбец" />
               <Grid ColumnDefinitions="*,Auto">

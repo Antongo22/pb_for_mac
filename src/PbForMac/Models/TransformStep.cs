@@ -28,6 +28,7 @@ namespace PbForMac.Models;
 [JsonDerivedType(typeof(AppendTableStep), "appendTable")]
 [JsonDerivedType(typeof(UnpivotColumnsStep), "unpivot")]
 [JsonDerivedType(typeof(MergeTablesStep), "mergeTables")]
+[JsonDerivedType(typeof(PivotColumnsStep), "pivot")]
 [JsonDerivedType(typeof(GroupByStep), "groupBy")]
 public abstract class TransformStep
 {
@@ -295,6 +296,20 @@ public sealed class MergeTablesStep : TransformStep
             return $"Merge ({kind}): «{Table}»[{LeftKey}] + «{OtherTable}»[{RightKey}] → «{target}»";
         }
     }
+}
+
+/// <summary>
+/// Сворачивает пары атрибут/значение в столбцы (Pivot), обратный Unpivot.
+/// Остальные столбцы — ключи строки; ячейки агрегируются.
+/// </summary>
+public sealed class PivotColumnsStep : TransformStep
+{
+    public string AttributeColumn { get; set; } = "";
+    public string ValueColumn { get; set; } = "";
+    public Aggregation Aggregation { get; set; } = Aggregation.Sum;
+
+    public override string Description =>
+        $"Pivot «{AttributeColumn}» / «{ValueColumn}» ({Labels.Of(Aggregation)})";
 }
 
 public sealed class AggregationSpec

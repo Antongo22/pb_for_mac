@@ -193,6 +193,26 @@ public sealed class ColumnEditor(DataModel model, IDialogService dialogs)
         }
     }
 
+    public async Task<bool> PivotAsync(string table, string attributeColumn, string valueColumn, Aggregation aggregation)
+    {
+        try
+        {
+            model.AddStep(new PivotColumnsStep
+            {
+                Table = table,
+                AttributeColumn = attributeColumn,
+                ValueColumn = valueColumn,
+                Aggregation = aggregation,
+            });
+            return true;
+        }
+        catch (InvalidOperationException e)
+        {
+            await dialogs.ShowMessageAsync("Не удалось выполнить Pivot", e.Message);
+            return false;
+        }
+    }
+
     public async Task<bool> UnpivotAsync(string table, IReadOnlyList<string> columns)
     {
         if (columns.Count == 0)

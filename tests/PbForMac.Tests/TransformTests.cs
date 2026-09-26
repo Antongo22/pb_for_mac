@@ -423,6 +423,36 @@ public class TransformTests
     }
 
     [Fact]
+    public void PivotColumns_CreatesColumnsFromAttribute()
+    {
+        var table = new DataTable("T");
+        table.Columns.Add("Id", typeof(string));
+        table.Columns.Add("Атрибут", typeof(string));
+        table.Columns.Add("Значение", typeof(double));
+        table.Rows.Add("a", "Янв", 10d);
+        table.Rows.Add("a", "Фев", 20d);
+        table.Rows.Add("b", "Янв", 1d);
+        table.Rows.Add("b", "Фев", 2d);
+        var tables = new List<DataTable> { table };
+
+        TransformEngine.Apply(tables, new PivotColumnsStep
+        {
+            Table = "T",
+            AttributeColumn = "Атрибут",
+            ValueColumn = "Значение",
+            Aggregation = Aggregation.Sum,
+        });
+
+        var result = tables[0];
+        Assert.True(result.Columns.Contains("Янв"));
+        Assert.True(result.Columns.Contains("Фев"));
+        Assert.Equal(2, result.Rows.Count);
+        var a = result.Rows.Cast<DataRow>().Single(r => Equals(r["Id"], "a"));
+        Assert.Equal(10d, Convert.ToDouble(a["Янв"]));
+        Assert.Equal(20d, Convert.ToDouble(a["Фев"]));
+    }
+
+    [Fact]
     public void SortRows_OrdersAscendingAndDescending()
     {
         var tables = Tables();

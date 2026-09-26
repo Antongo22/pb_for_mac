@@ -110,6 +110,10 @@ public static class TransformEngine
                 MergeTables(tables, s);
                 break;
 
+            case PivotColumnsStep s:
+                PivotColumns(table, s.AttributeColumn, s.ValueColumn, s.Aggregation);
+                break;
+
             case GroupByStep s:
                 if (string.IsNullOrWhiteSpace(s.NewTable))
                     throw new InvalidOperationException("Укажите имя новой таблицы.");
@@ -406,6 +410,65 @@ public static class TransformEngine
                 row[dest] = rightRow[source];
         }
         result.Rows.Add(row);
+    }
+
+    /// <summary>Pivot: атрибут → столбцы, значение агрегируется по ключам.</summary>
+    public static void PivotColumns(DataTable table, string attributeColumn, string valueColumn, Aggregation aggregation)
+    {
+        RequireColumn(table, attributeColumn);
+        RequireColumn(table, valueColumn);
+        if (string.Equals(attributeColumn, valueColumn, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Столбцы атрибута и значения должны различаться.");
+
+        var keys = table.Columns.Cast<DataColumn>()
+            .Where(c => !string.Equals(c.ColumnName, attributeColumn, StringComparison.OrdinalIgnoreCase)
+                        && !string.Equals(c.ColumnName, valueColumn, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (keys.Count == 0)
+            throw new InvalidOperationException("Для Pivot нужен хотя бы один ключевой столбец.");
+
+        var pivotNames = table.Rows.Cast<DataRow>()
+            .Select(r => QueryEngine.Key(r[attributeColumn]))
+            .Where(k => k.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(k => k, StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("ru-RU"), ignoreCase: true))
+            .ToList();
+        if (pivotNames.Count == 0)
+            throw new InvalidOperationException("Нет значений атрибута для Pivot.");
+
+        var result = new DataTable(table.TableName);
+        foreach (var key in keys)
+            result.Columns.Add(key.ColumnName, key.DataType);
+        foreach (var name in pivotNames)
+            result.Columns.Add(QueryEngine.Unique(result, name), typeof(double));
+
+        var groups = table.Rows.Cast<DataRow>().GroupBy(r =>
+            string.Join("\u001F", keys.Select(k => QueryEngine.Key(r[k]))));
+
+        foreach (var group in groups)
+        {
+            var first = group.First();
+            var row = result.NewRow();
+            foreach (var key in keys)
+                row[key.ColumnName] = first[key];
+
+            var byAttr = group.GroupBy(r => QueryEngine.Key(r[attributeColumn]), StringComparer.OrdinalIgnoreCase);
+            foreach (var attrGroup in byAttr)
+            {
+                if (attrGroup.Key.Length == 0 || !result.Columns.Contains(attrGroup.Key))
+                    continue;
+                var value = QueryEngine.Aggregate(attrGroup.Select(r => r[valueColumn]), aggregation);
+                row[attrGroup.Key] = double.IsNaN(value) ? DBNull.Value : value;
+            }
+            result.Rows.Add(row);
+        }
+
+        table.Rows.Clear();
+        table.Columns.Clear();
+        foreach (DataColumn column in result.Columns)
+            table.Columns.Add(column.ColumnName, column.DataType);
+        foreach (DataRow row in result.Rows)
+            table.ImportRow(row);
     }
 
     public static void ChangeType(DataTable table, string columnName, ColumnType type)

@@ -157,6 +157,16 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
     [ObservableProperty]
     private string? _mergeNewTable;
 
+    // Pivot
+    [ObservableProperty]
+    private string? _pivotAttributeColumn;
+
+    [ObservableProperty]
+    private string? _pivotValueColumn;
+
+    [ObservableProperty]
+    private Option<Aggregation> _pivotAggregation = Labels.Aggregations[0];
+
     // Связи
     public ObservableCollection<RelationshipItemViewModel> Relationships { get; } = [];
     public ObservableCollection<string> RelationshipFromColumns { get; } = [];
@@ -508,6 +518,12 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
             FilterColumn = Columns.FirstOrDefault()?.Name;
         if (AggregationColumn is null || Columns.All(c => c.Name != AggregationColumn))
             AggregationColumn = Columns.FirstOrDefault(c => TypeInference.IsNumeric(c.Type))?.Name ?? Columns.FirstOrDefault()?.Name;
+        if (PivotAttributeColumn is null || Columns.All(c => c.Name != PivotAttributeColumn))
+            PivotAttributeColumn = Columns.FirstOrDefault()?.Name;
+        if (PivotValueColumn is null || Columns.All(c => c.Name != PivotValueColumn))
+            PivotValueColumn = Columns.FirstOrDefault(c => TypeInference.IsNumeric(c.Type))?.Name
+                               ?? Columns.Skip(1).FirstOrDefault()?.Name
+                               ?? Columns.FirstOrDefault()?.Name;
         foreach (var spec in AggregationSpecs.Where(s => Columns.All(c => c.Name != s.Spec.Column)).ToList())
             AggregationSpecs.Remove(spec);
 
@@ -729,6 +745,19 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
                 SelectedTable = MergeNewTable.Trim();
             MergeNewTable = null;
         }
+    }
+
+    [RelayCommand]
+    private async Task PivotColumnsAsync()
+    {
+        if (SelectedTable is null || PivotAttributeColumn is null || PivotValueColumn is null)
+        {
+            Error = "Выберите таблицу и столбцы атрибута и значения для Pivot.";
+            return;
+        }
+        Error = null;
+        if (await _columns.PivotAsync(SelectedTable, PivotAttributeColumn, PivotValueColumn, PivotAggregation.Value))
+            Info = $"Pivot по «{PivotAttributeColumn}» выполнен";
     }
 
     [RelayCommand]
