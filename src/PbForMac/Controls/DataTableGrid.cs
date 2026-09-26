@@ -254,6 +254,11 @@ public sealed class DataTableGrid : UserControl
         menu.Items.Add(Item("Заполнить вверх", () => editor.FillUpAsync(table, column)));
         menu.Items.Add(Item("Разделить столбец…", () => editor.SplitColumnAsync(table, column)));
 
+        var sortMenu = new MenuItem { Header = "Сортировать" };
+        sortMenu.Items.Add(Item("По возрастанию", () => editor.SortAsync(table, column, descending: false)));
+        sortMenu.Items.Add(Item("По убыванию", () => editor.SortAsync(table, column, descending: true)));
+        menu.Items.Add(sortMenu);
+
         var typeMenu = new MenuItem { Header = "Сменить тип" };
         foreach (var option in Labels.ColumnTypes)
         {

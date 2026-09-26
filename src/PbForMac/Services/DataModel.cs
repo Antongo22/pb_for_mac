@@ -154,6 +154,21 @@ public sealed class DataModel
         Rebuild();
     }
 
+    /// <summary>Перемещает шаг вверх (delta=-1) или вниз (delta=+1) в журнале.</summary>
+    public bool MoveStep(TransformStep step, int delta)
+    {
+        var index = Steps.IndexOf(step);
+        if (index < 0 || delta == 0)
+            return false;
+        var target = index + delta;
+        if (target < 0 || target >= Steps.Count)
+            return false;
+        Steps.RemoveAt(index);
+        Steps.Insert(target, step);
+        Rebuild();
+        return true;
+    }
+
     /// <summary>Удаляет таблицу вместе с источником и всеми зависящими от неё шагами.</summary>
     public void RemoveTable(string name) => RemoveTables([name]);
 

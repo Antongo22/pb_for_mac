@@ -23,6 +23,7 @@ namespace PbForMac.Models;
 [JsonDerivedType(typeof(FillUpStep), "fillUp")]
 [JsonDerivedType(typeof(RemoveBlankRowsStep), "removeBlankRows")]
 [JsonDerivedType(typeof(SplitColumnStep), "splitColumn")]
+[JsonDerivedType(typeof(SortRowsStep), "sortRows")]
 [JsonDerivedType(typeof(GroupByStep), "groupBy")]
 public abstract class TransformStep
 {
@@ -193,6 +194,17 @@ public sealed class SplitColumnStep : TransformStep
             return $"Разделён столбец «{Column}» по {delim}{limit}";
         }
     }
+}
+
+/// <summary>Сортирует строки таблицы по столбцу (как «Сортировать» в Power Query).</summary>
+public sealed class SortRowsStep : TransformStep
+{
+    public string Column { get; set; } = "";
+    public bool Descending { get; set; }
+
+    public override string Description => Descending
+        ? $"Сортировка по «{Column}» ↓"
+        : $"Сортировка по «{Column}» ↑";
 }
 
 public sealed class AggregationSpec

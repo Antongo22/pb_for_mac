@@ -260,6 +260,7 @@ public class TransformTests
                 new FillUpStep { Table = "A", Column = "x" },
                 new RemoveBlankRowsStep { Table = "A", Columns = ["x"] },
                 new SplitColumnStep { Table = "A", Column = "x", Delimiter = ";", MaxParts = 3 },
+                new SortRowsStep { Table = "A", Column = "x", Descending = true },
             ],
             Visuals = [new VisualDefinition { Kind = VisualKind.Pie, Table = "A", ValueFields = ["x"] }],
         };
@@ -278,6 +279,7 @@ public class TransformTests
         Assert.Contains("\"fillUp\"", json);
         Assert.Contains("\"removeBlankRows\"", json);
         Assert.Contains("\"splitColumn\"", json);
+        Assert.Contains("\"sortRows\"", json);
         Assert.IsType<CalculatedColumnStep>(restored.Steps[0]);
         Assert.Equal(["1"], ((FilterRowsStep)restored.Steps[1]).Filter.Values);
         Assert.Equal(["a", "b"], ((RemoveColumnsStep)restored.Steps[2]).Columns);
@@ -290,7 +292,37 @@ public class TransformTests
         Assert.Equal("x", ((FillUpStep)restored.Steps[9]).Column);
         Assert.Equal(["x"], ((RemoveBlankRowsStep)restored.Steps[10]).Columns);
         Assert.Equal(";", ((SplitColumnStep)restored.Steps[11]).Delimiter);
+        Assert.True(((SortRowsStep)restored.Steps[12]).Descending);
         Assert.Equal(VisualKind.Pie, restored.Visuals[0].Kind);
+    }
+
+    [Fact]
+    public void SortRows_OrdersAscendingAndDescending()
+    {
+        var tables = Tables();
+        TransformEngine.Apply(tables, new SortRowsStep { Table = "Продажи", Column = "Регион", Descending = false });
+        var ascending = tables[0].Rows.Cast<DataRow>().Select(r => (string)r["Регион"]).ToList();
+        Assert.Equal(ascending.OrderBy(x => x, StringComparer.Create(new System.Globalization.CultureInfo("ru-RU"), ignoreCase: true)).ToList(), ascending);
+
+        TransformEngine.Apply(tables, new SortRowsStep { Table = "Продажи", Column = "Регион", Descending = true });
+        var descending = tables[0].Rows.Cast<DataRow>().Select(r => (string)r["Регион"]).ToList();
+        Assert.Equal(ascending.AsEnumerable().Reverse().ToList(), descending);
+    }
+
+    [Fact]
+    public void DataModel_MoveStep_ReordersAndRebuilds()
+    {
+        var model = new DataModel();
+        model.AddSource(new DataSourceDefinition { TableName = "Продажи" }, TestData.Sales());
+        model.AddStep(new RenameColumnStep { Table = "Продажи", Column = "Регион", NewName = "Область" });
+        model.AddStep(new SortRowsStep { Table = "Продажи", Column = "Область", Descending = false });
+
+        Assert.True(model.MoveStep(model.Steps[1], -1));
+        Assert.IsType<SortRowsStep>(model.Steps[0]);
+        Assert.IsType<RenameColumnStep>(model.Steps[1]);
+        // После перестановки сортировка идёт до переименования — столбца «Область» ещё нет.
+        Assert.True(model.StepErrors.ContainsKey(model.Steps[0]));
+        Assert.True(model.GetTable("Продажи")!.Columns.Contains("Область"));
     }
 
     [Fact]

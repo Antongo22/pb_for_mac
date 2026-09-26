@@ -308,9 +308,17 @@
                         <TextBlock Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" FontSize="12"
                                    Foreground="{DynamicResource ErrorBrush}" />
                       </StackPanel>
-                      <Button Grid.Column="3" Classes="icon" VerticalAlignment="Top" Command="{Binding Remove}" ToolTip.Tip="Удалить шаг">
-                        <PathIcon Data="{StaticResource IconDelete}" />
-                      </Button>
+                      <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2" VerticalAlignment="Top">
+                        <Button Classes="icon" Command="{Binding MoveUp}" IsEnabled="{Binding CanMoveUp}" ToolTip.Tip="Выше">
+                          <TextBlock Text="↑" FontSize="12" />
+                        </Button>
+                        <Button Classes="icon" Command="{Binding MoveDown}" IsEnabled="{Binding CanMoveDown}" ToolTip.Tip="Ниже">
+                          <TextBlock Text="↓" FontSize="12" />
+                        </Button>
+                        <Button Classes="icon" Command="{Binding Remove}" ToolTip.Tip="Удалить шаг">
+                          <PathIcon Data="{StaticResource IconDelete}" />
+                        </Button>
+                      </StackPanel>
                     </Grid>
                   </Border>
                 </DataTemplate>

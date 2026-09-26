@@ -90,6 +90,10 @@ public static class TransformEngine
                 SplitColumn(table, s.Column, s.Delimiter, s.MaxParts);
                 break;
 
+            case SortRowsStep s:
+                SortRows(table, s.Column, s.Descending);
+                break;
+
             case GroupByStep s:
                 if (string.IsNullOrWhiteSpace(s.NewTable))
                     throw new InvalidOperationException("Укажите имя новой таблицы.");
@@ -153,6 +157,22 @@ public static class TransformEngine
         if (newOrdinal < 0 || newOrdinal >= table.Columns.Count)
             throw new InvalidOperationException($"Позиция столбца должна быть от 1 до {table.Columns.Count}.");
         column.SetOrdinal(newOrdinal);
+    }
+
+    /// <summary>Перестраивает порядок строк таблицы по столбцу (стабильная сортировка).</summary>
+    public static void SortRows(DataTable table, string columnName, bool descending)
+    {
+        var column = RequireColumn(table, columnName);
+        var comparer = Comparer<object>.Create(QueryEngine.Compare);
+        var ordered = descending
+            ? table.Rows.Cast<DataRow>().OrderByDescending(r => r[column], comparer).ToList()
+            : table.Rows.Cast<DataRow>().OrderBy(r => r[column], comparer).ToList();
+        var clone = table.Clone();
+        foreach (var row in ordered)
+            clone.ImportRow(row);
+        table.Rows.Clear();
+        foreach (DataRow row in clone.Rows)
+            table.ImportRow(row);
     }
 
     public static void ChangeType(DataTable table, string columnName, ColumnType type)

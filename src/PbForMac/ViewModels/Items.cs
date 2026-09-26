@@ -60,16 +60,21 @@ public sealed partial class StepItemViewModel : ObservableObject
 {
     private readonly Action<StepItemViewModel> _remove;
     private readonly Action<StepItemViewModel>? _toggled;
+    private readonly Action<StepItemViewModel, int>? _move;
 
-    public StepItemViewModel(int index, TransformStep step, string? error, Action<StepItemViewModel> remove,
-        Action<StepItemViewModel>? toggled = null)
+    public StepItemViewModel(int index, int total, TransformStep step, string? error,
+        Action<StepItemViewModel> remove, Action<StepItemViewModel>? toggled = null,
+        Action<StepItemViewModel, int>? move = null)
     {
         Index = index;
         Step = step;
         Error = error;
         _remove = remove;
         _toggled = toggled;
+        _move = move;
         _isEnabled = step.Enabled;
+        CanMoveUp = index > 1;
+        CanMoveDown = index < total;
     }
 
     public TransformStep Step { get; }
@@ -79,6 +84,8 @@ public sealed partial class StepItemViewModel : ObservableObject
     public string Description => Step.Description;
     public string? Error { get; }
     public bool HasError => Error is not null;
+    public bool CanMoveUp { get; }
+    public bool CanMoveDown { get; }
 
     [ObservableProperty]
     private bool _isEnabled;
@@ -91,6 +98,8 @@ public sealed partial class StepItemViewModel : ObservableObject
         _toggled?.Invoke(this);
     }
 
+    public void MoveUp() => _move?.Invoke(this, -1);
+    public void MoveDown() => _move?.Invoke(this, 1);
     public void Remove() => _remove(this);
 }
 

@@ -176,9 +176,10 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
 
         Steps.Clear();
         var index = 1;
+        var total = _model.Steps.Count;
         foreach (var step in _model.Steps)
-            Steps.Add(new StepItemViewModel(index++, step, _model.StepErrors.GetValueOrDefault(step),
-                item => _ = RemoveStepAsync(item), OnStepToggled));
+            Steps.Add(new StepItemViewModel(index++, total, step, _model.StepErrors.GetValueOrDefault(step),
+                item => _ = RemoveStepAsync(item), OnStepToggled, OnStepMoved));
         OnPropertyChanged(nameof(HasSteps));
         OnPropertyChanged(nameof(StepCountText));
         OnPropertyChanged(nameof(VisibleSteps));
@@ -710,5 +711,13 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
         Error = null;
         Info = item.IsEnabled ? $"Включён шаг: {item.Description}" : $"Выключен шаг: {item.Description}";
         _model.Rebuild();
+    }
+
+    private void OnStepMoved(StepItemViewModel item, int delta)
+    {
+        Error = null;
+        if (!_model.MoveStep(item.Step, delta))
+            return;
+        Info = delta < 0 ? $"Шаг выше: {item.Description}" : $"Шаг ниже: {item.Description}";
     }
 }

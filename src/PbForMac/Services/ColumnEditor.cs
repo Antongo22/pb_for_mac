@@ -123,6 +123,20 @@ public sealed class ColumnEditor(DataModel model, IDialogService dialogs)
         }
     }
 
+    public async Task<bool> SortAsync(string table, string column, bool descending)
+    {
+        try
+        {
+            model.AddStep(new SortRowsStep { Table = table, Column = column, Descending = descending });
+            return true;
+        }
+        catch (InvalidOperationException e)
+        {
+            await dialogs.ShowMessageAsync("Не удалось отсортировать", e.Message);
+            return false;
+        }
+    }
+
     public async Task<bool> RemoveRowsAsync(string table, IReadOnlyList<DataRow> rows)
     {
         if (rows.Count == 0)
