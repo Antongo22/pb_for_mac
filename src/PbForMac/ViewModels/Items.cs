@@ -112,6 +112,15 @@ public sealed class AggregationSpecItem(AggregationSpec spec, Action<Aggregation
     public void Remove() => remove(this);
 }
 
+/// <summary>Правило условного столбца в списке формы.</summary>
+public sealed class ConditionalRuleItem(ConditionalRule rule, Action<ConditionalRuleItem> remove)
+{
+    public ConditionalRule Rule { get; } = rule;
+    public string Text => $"{Rule.Column} {Labels.Of(Rule.Operator)} «{Rule.Value}» → «{Rule.Output}»";
+
+    public void Remove() => remove(this);
+}
+
 /// <summary>Таблица в панели «Поля» отчёта.</summary>
 public sealed partial class FieldTableNode : ObservableObject
 {

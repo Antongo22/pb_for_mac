@@ -114,6 +114,10 @@ public static class TransformEngine
                 PivotColumns(table, s.AttributeColumn, s.ValueColumn, s.Aggregation);
                 break;
 
+            case ConditionalColumnStep s:
+                AddConditionalColumn(table, s);
+                break;
+
             case GroupByStep s:
                 if (string.IsNullOrWhiteSpace(s.NewTable))
                     throw new InvalidOperationException("Укажите имя новой таблицы.");
@@ -469,6 +473,49 @@ public static class TransformEngine
             table.Columns.Add(column.ColumnName, column.DataType);
         foreach (DataRow row in result.Rows)
             table.ImportRow(row);
+    }
+
+    public static void AddConditionalColumn(DataTable table, ConditionalColumnStep step)
+    {
+        var name = step.Name?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(name))
+            throw new InvalidOperationException("Укажите имя столбца.");
+        if (table.Columns.Contains(name))
+            throw new InvalidOperationException($"Столбец «{name}» уже существует.");
+        if (step.Rules.Count == 0)
+            throw new InvalidOperationException("Добавьте хотя бы одно правило.");
+
+        var predicates = new List<(Func<DataRow, bool> Test, string Output)>();
+        foreach (var rule in step.Rules)
+        {
+            if (string.IsNullOrWhiteSpace(rule.Column))
+                throw new InvalidOperationException("В правиле не указан столбец.");
+            RequireColumn(table, rule.Column);
+            var filter = new FilterDefinition
+            {
+                Table = table.TableName,
+                Column = rule.Column,
+                Operator = rule.Operator,
+                Value = rule.Value,
+            };
+            predicates.Add((QueryEngine.BuildPredicate(table, filter), rule.Output ?? ""));
+        }
+
+        var column = table.Columns.Add(name, typeof(string));
+        foreach (DataRow row in table.Rows)
+        {
+            var matched = false;
+            foreach (var (test, output) in predicates)
+            {
+                if (!test(row))
+                    continue;
+                row[column] = output;
+                matched = true;
+                break;
+            }
+            if (!matched)
+                row[column] = step.ElseValue ?? "";
+        }
     }
 
     public static void ChangeType(DataTable table, string columnName, ColumnType type)

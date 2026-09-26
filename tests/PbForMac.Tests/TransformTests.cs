@@ -453,6 +453,34 @@ public class TransformTests
     }
 
     [Fact]
+    public void ConditionalColumn_AppliesRulesAndElse()
+    {
+        var tables = Tables();
+        TransformEngine.Apply(tables, new ConditionalColumnStep
+        {
+            Table = "Продажи",
+            Name = "Зона",
+            Rules =
+            [
+                new ConditionalRule { Column = "Регион", Operator = FilterOperator.Equals, Value = "Север", Output = "С" },
+                new ConditionalRule { Column = "Регион", Operator = FilterOperator.Equals, Value = "Юг", Output = "Ю" },
+            ],
+            ElseValue = "др",
+        });
+        var col = tables[0].Columns["Зона"]!;
+        Assert.Equal("С", tables[0].Rows[0][col]);
+        Assert.Equal("Ю", tables[0].Rows[1][col]);
+        Assert.Equal("др", tables[0].Rows.Cast<DataRow>().First(r => Equals(r["Регион"], "Запад"))[col]);
+    }
+
+    [Fact]
+    public void ConditionalColumn_RequiresRules()
+    {
+        Assert.Throws<InvalidOperationException>(() =>
+            TransformEngine.Apply(Tables(), new ConditionalColumnStep { Table = "Продажи", Name = "X" }));
+    }
+
+    [Fact]
     public void SortRows_OrdersAscendingAndDescending()
     {
         var tables = Tables();

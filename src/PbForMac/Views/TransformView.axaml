@@ -187,6 +187,35 @@
                 <Border Classes="info" Margin="0,8,0,0">
                   <TextBlock Text="{Binding ExpressionHelp}" FontFamily="Menlo, Consolas, monospace" FontSize="12" />
                 </Border>
+
+                <Rectangle Height="1" Fill="{DynamicResource DividerBrush}" Margin="0,16,0,8" />
+                <TextBlock Classes="caption" Text="Условный столбец" FontWeight="SemiBold" />
+                <TextBlock Classes="hint" Text="Цепочка if/else по правилам: если условие верно — подставить значение, иначе «иначе»." />
+                <TextBox Text="{Binding ConditionalName}" Watermark="Имя нового столбца" />
+                <Grid ColumnDefinitions="*,*,*" >
+                  <ComboBox ItemsSource="{Binding Columns}" SelectedValue="{Binding ConditionalRuleColumn}"
+                            SelectedValueBinding="{ReflectionBinding Name}" PlaceholderText="Столбец" Margin="0,0,6,0" />
+                  <ComboBox Grid.Column="1" ItemsSource="{Binding FilterOperators}" SelectedItem="{Binding ConditionalRuleOperator}" Margin="0,0,6,0" />
+                  <TextBox Grid.Column="2" Text="{Binding ConditionalRuleValue}" Watermark="Значение" />
+                </Grid>
+                <TextBox Text="{Binding ConditionalRuleOutput}" Watermark="Тогда подставить…" />
+                <Button Content="Добавить правило" Command="{Binding AddConditionalRuleCommand}" HorizontalAlignment="Left" />
+                <ItemsControl ItemsSource="{Binding ConditionalRules}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ConditionalRuleItem">
+                      <Border Classes="chip" HorizontalAlignment="Left" Margin="0,0,0,4">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                          <TextBlock Text="{Binding Text}" FontSize="12" VerticalAlignment="Center" />
+                          <Button Classes="icon" Command="{Binding Remove}">
+                            <PathIcon Data="{StaticResource IconClose}" />
+                          </Button>
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBox Text="{Binding ConditionalElseValue}" Watermark="Иначе…" />
+                <Button Classes="accent" Content="Добавить условный столбец" Command="{Binding AddConditionalColumnCommand}" HorizontalAlignment="Left" />
               </StackPanel>
             </ScrollViewer>
           </TabItem>

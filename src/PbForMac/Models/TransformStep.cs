@@ -29,6 +29,7 @@ namespace PbForMac.Models;
 [JsonDerivedType(typeof(UnpivotColumnsStep), "unpivot")]
 [JsonDerivedType(typeof(MergeTablesStep), "mergeTables")]
 [JsonDerivedType(typeof(PivotColumnsStep), "pivot")]
+[JsonDerivedType(typeof(ConditionalColumnStep), "conditionalColumn")]
 [JsonDerivedType(typeof(GroupByStep), "groupBy")]
 public abstract class TransformStep
 {
@@ -310,6 +311,28 @@ public sealed class PivotColumnsStep : TransformStep
 
     public override string Description =>
         $"Pivot «{AttributeColumn}» / «{ValueColumn}» ({Labels.Of(Aggregation)})";
+}
+
+/// <summary>Одно правило условного столбца: если столбец удовлетворяет оператору — подставить Output.</summary>
+public sealed class ConditionalRule
+{
+    public string Column { get; set; } = "";
+    public FilterOperator Operator { get; set; } = FilterOperator.Equals;
+    public string? Value { get; set; }
+    public string Output { get; set; } = "";
+}
+
+/// <summary>Условный столбец: цепочка if/else по правилам, иначе ElseValue.</summary>
+public sealed class ConditionalColumnStep : TransformStep
+{
+    public string Name { get; set; } = "";
+    public List<ConditionalRule> Rules { get; set; } = [];
+    public string ElseValue { get; set; } = "";
+
+    public override string Description =>
+        Rules.Count == 0
+            ? $"Условный столбец «{Name}»"
+            : $"Условный столбец «{Name}» ({Rules.Count} правил)";
 }
 
 public sealed class AggregationSpec

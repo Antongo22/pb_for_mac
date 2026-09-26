@@ -167,6 +167,27 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
     [ObservableProperty]
     private Option<Aggregation> _pivotAggregation = Labels.Aggregations[0];
 
+    // Conditional column
+    public ObservableCollection<ConditionalRuleItem> ConditionalRules { get; } = [];
+
+    [ObservableProperty]
+    private string? _conditionalName;
+
+    [ObservableProperty]
+    private string? _conditionalRuleColumn;
+
+    [ObservableProperty]
+    private Option<FilterOperator> _conditionalRuleOperator = Labels.FilterOperators[0];
+
+    [ObservableProperty]
+    private string? _conditionalRuleValue;
+
+    [ObservableProperty]
+    private string? _conditionalRuleOutput;
+
+    [ObservableProperty]
+    private string? _conditionalElseValue;
+
     // Связи
     public ObservableCollection<RelationshipItemViewModel> Relationships { get; } = [];
     public ObservableCollection<string> RelationshipFromColumns { get; } = [];
@@ -774,6 +795,46 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
         {
             CalcName = null;
             CalcExpression = null;
+        }
+    }
+
+    [RelayCommand]
+    private void AddConditionalRule()
+    {
+        if (ConditionalRuleColumn is null)
+        {
+            Error = "Выберите столбец для правила.";
+            return;
+        }
+        Error = null;
+        var rule = new ConditionalRule
+        {
+            Column = ConditionalRuleColumn,
+            Operator = ConditionalRuleOperator.Value,
+            Value = ConditionalRuleValue,
+            Output = ConditionalRuleOutput ?? "",
+        };
+        ConditionalRules.Add(new ConditionalRuleItem(rule, item => ConditionalRules.Remove(item)));
+        ConditionalRuleValue = null;
+        ConditionalRuleOutput = null;
+    }
+
+    [RelayCommand]
+    private void AddConditionalColumn()
+    {
+        if (SelectedTable is null)
+            return;
+        if (TryAddStep(new ConditionalColumnStep
+            {
+                Table = SelectedTable,
+                Name = ConditionalName?.Trim() ?? "",
+                Rules = ConditionalRules.Select(r => r.Rule).ToList(),
+                ElseValue = ConditionalElseValue ?? "",
+            }))
+        {
+            ConditionalName = null;
+            ConditionalElseValue = null;
+            ConditionalRules.Clear();
         }
     }
 
