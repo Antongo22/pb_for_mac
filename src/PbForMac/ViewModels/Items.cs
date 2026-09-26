@@ -117,3 +117,21 @@ public sealed partial class TableTreeNode : ObservableObject
         _ => $"{count} таблиц",
     };
 }
+
+/// <summary>Связь в списке на вкладке «Связи».</summary>
+public sealed class RelationshipItemViewModel(
+    RelationshipDefinition relationship, double? matchRate, string? issue, Action<RelationshipItemViewModel> remove)
+{
+    public RelationshipDefinition Relationship { get; } = relationship;
+    public string FromText => FieldRef.Format(Relationship.FromTable, Relationship.FromColumn);
+    public string ToText => FieldRef.Format(Relationship.ToTable, Relationship.ToColumn);
+
+    public string Details => matchRate is { } rate
+        ? $"многие к одному · в справочнике найдено {rate:P0} ключей"
+        : "многие к одному";
+
+    public string? Issue { get; } = issue;
+    public bool HasIssue => Issue is not null;
+
+    public void Remove() => remove(this);
+}

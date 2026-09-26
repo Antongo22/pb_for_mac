@@ -105,6 +105,24 @@ public sealed partial class TransformViewModel : ViewModelBase
     [ObservableProperty]
     private string? _groupTableName;
 
+    // Связи
+    public ObservableCollection<RelationshipItemViewModel> Relationships { get; } = [];
+    public ObservableCollection<string> RelationshipFromColumns { get; } = [];
+    public ObservableCollection<string> RelationshipToColumns { get; } = [];
+    public bool HasRelationships => Relationships.Count > 0;
+
+    [ObservableProperty]
+    private string? _relationshipFromTable;
+
+    [ObservableProperty]
+    private string? _relationshipFromColumn;
+
+    [ObservableProperty]
+    private string? _relationshipToTable;
+
+    [ObservableProperty]
+    private string? _relationshipToColumn;
+
     private DataTable? CurrentTable => _model.GetTable(SelectedTable);
 
     private void OnModelChanged()
@@ -122,6 +140,100 @@ public sealed partial class TransformViewModel : ViewModelBase
         foreach (var step in _model.Steps)
             Steps.Add(new StepItemViewModel(index++, step, _model.StepErrors.GetValueOrDefault(step), item => _ = RemoveStepAsync(item)));
         OnPropertyChanged(nameof(HasSteps));
+
+        Relationships.Clear();
+        foreach (var relationship in _model.Relationships)
+        {
+            Relationships.Add(new RelationshipItemViewModel(relationship, _model.MatchRate(relationship),
+                _model.RelationshipIssues.GetValueOrDefault(relationship), item => _ = RemoveRelationshipAsync(item)));
+        }
+        OnPropertyChanged(nameof(HasRelationships));
+
+        if (RelationshipFromTable is null || !Tables.Contains(RelationshipFromTable))
+            RelationshipFromTable = Tables.FirstOrDefault();
+        if (RelationshipToTable is null || !Tables.Contains(RelationshipToTable))
+            RelationshipToTable = Tables.FirstOrDefault(t => t != RelationshipFromTable) ?? Tables.FirstOrDefault();
+        FillColumns(RelationshipFromTable, RelationshipFromColumns);
+        FillColumns(RelationshipToTable, RelationshipToColumns);
+    }
+
+    partial void OnRelationshipFromTableChanged(string? value)
+    {
+        FillColumns(value, RelationshipFromColumns);
+        RelationshipFromColumn = RelationshipFromColumns.FirstOrDefault();
+    }
+
+    partial void OnRelationshipToTableChanged(string? value)
+    {
+        FillColumns(value, RelationshipToColumns);
+        MatchToColumn();
+    }
+
+    partial void OnRelationshipFromColumnChanged(string? value) => MatchToColumn();
+
+    /// <summary>В справочнике по умолчанию выбирается одноимённый столбец-ключ.</summary>
+    private void MatchToColumn() =>
+        RelationshipToColumn = RelationshipToColumns.FirstOrDefault(c => string.Equals(c, RelationshipFromColumn, StringComparison.OrdinalIgnoreCase))
+                               ?? (RelationshipToColumns.Contains(RelationshipToColumn ?? "") ? RelationshipToColumn : RelationshipToColumns.FirstOrDefault());
+
+    private void FillColumns(string? tableName, ObservableCollection<string> target)
+    {
+        var columns = _model.GetTable(tableName)?.Columns.Cast<DataColumn>().Select(c => c.ColumnName).ToList() ?? [];
+        if (columns.SequenceEqual(target))
+            return;
+        target.Clear();
+        foreach (var column in columns)
+            target.Add(column);
+    }
+
+    [RelayCommand]
+    private void AddRelationship()
+    {
+        Error = null;
+        Info = null;
+        if (RelationshipFromTable is null || RelationshipFromColumn is null || RelationshipToTable is null || RelationshipToColumn is null)
+        {
+            Error = "Выберите таблицы и столбцы связи.";
+            return;
+        }
+        var relationship = new RelationshipDefinition
+        {
+            FromTable = RelationshipFromTable,
+            FromColumn = RelationshipFromColumn,
+            ToTable = RelationshipToTable,
+            ToColumn = RelationshipToColumn,
+        };
+        try
+        {
+            _model.AddRelationship(relationship);
+            Info = $"Добавлена связь {relationship}.";
+        }
+        catch (InvalidOperationException e)
+        {
+            Error = e.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void DetectRelationships()
+    {
+        Error = null;
+        var found = _model.DetectRelationships();
+        Info = found.Count == 0
+            ? "Новых связей не найдено: ищутся одноимённые столбцы с уникальными ключами в справочнике."
+            : $"Найдено связей: {found.Count} — {string.Join(", ", found)}.";
+    }
+
+    /// <summary>Удаляет связь после подтверждения: визуалы потеряют поля справочника, полученные через неё.</summary>
+    public async Task RemoveRelationshipAsync(RelationshipItemViewModel item)
+    {
+        if (!await _dialogs.ConfirmAsync("Удалить связь",
+                $"Удалить связь {item.Relationship}? Визуалы таблицы «{item.Relationship.FromTable}» потеряют поля " +
+                $"«{item.Relationship.ToTable}», а срезы по «{item.Relationship.ToTable}» перестанут её фильтровать."))
+            return;
+        Error = null;
+        Info = $"Удалена связь {item.Relationship}.";
+        _model.RemoveRelationship(item.Relationship);
     }
 
     partial void OnSelectedTableChanged(string? value) => LoadTable();

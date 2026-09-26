@@ -239,6 +239,38 @@ public class MainWindowViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task RelationshipsTab_RemoveAsks_AddManuallyMatchesKeyColumn_DetectFindsNothingNew()
+    {
+        var vm = await ImportSalesAndProducts();
+        var transform = vm.Transform;
+        Assert.True(transform.HasRelationships);
+        Assert.Contains("100", transform.Relationships[0].Details);
+
+        _dialogs.ConfirmResult = false;
+        await transform.RemoveRelationshipAsync(transform.Relationships[0]);
+        Assert.Single(vm.Model.Relationships);
+
+        _dialogs.ConfirmResult = true;
+        await transform.RemoveRelationshipAsync(transform.Relationships[0]);
+        Assert.Empty(vm.Model.Relationships);
+        Assert.False(transform.HasRelationships);
+
+        transform.RelationshipFromTable = "sales";
+        transform.RelationshipFromColumn = "ID_PRODUCT";
+        transform.RelationshipToTable = "products";
+        Assert.Equal("ID_PRODUCT", transform.RelationshipToColumn); // одноимённый ключ подставился сам
+        transform.AddRelationshipCommand.Execute(null);
+        Assert.Null(transform.Error);
+        Assert.Equal("sales[ID_PRODUCT]", Assert.Single(transform.Relationships).FromText);
+
+        transform.AddRelationshipCommand.Execute(null);
+        Assert.Equal("Такая связь уже есть.", transform.Error);
+
+        transform.DetectRelationshipsCommand.Execute(null);
+        Assert.StartsWith("Новых связей не найдено", transform.Info);
+    }
+
+    [Fact]
     public async Task Relationships_AreSavedAndRestoredWithReport()
     {
         var vm = await ImportSalesAndProducts();

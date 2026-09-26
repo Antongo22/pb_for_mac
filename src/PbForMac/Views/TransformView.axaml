@@ -165,6 +165,60 @@
               <Button Classes="accent" Content="Добавить шаг" Command="{Binding AddFilterStepCommand}" />
             </StackPanel>
           </TabItem>
+
+          <TabItem Header="Связи">
+            <ScrollViewer>
+              <StackPanel Spacing="10" MaxWidth="860" HorizontalAlignment="Left">
+                <TextBlock Classes="hint"
+                           Text="Связь «многие к одному» соединяет таблицу фактов (например, продажи) со справочником (товары, магазины) по ключу. Столбцы справочника становятся доступны в визуалах таблицы фактов как «Таблица[Столбец]», а фильтры и срезы по справочнику фильтруют таблицу фактов. Связи с новыми таблицами ищутся автоматически при загрузке." />
+                <Button Command="{Binding DetectRelationshipsCommand}" Content="Найти связи автоматически" />
+
+                <TextBlock Classes="hint" IsVisible="{Binding !HasRelationships}"
+                           Text="Связей пока нет. Нажмите «Найти связи автоматически» или добавьте связь вручную ниже." />
+                <ItemsControl ItemsSource="{Binding Relationships}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:RelationshipItemViewModel">
+                      <Border Background="{DynamicResource PageBrush}" CornerRadius="4" Padding="10,8" Margin="0,0,0,6"
+                              BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
+                        <Grid ColumnDefinitions="*,Auto">
+                          <StackPanel Spacing="3">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                              <TextBlock Text="{Binding FromText}" FontWeight="SemiBold" />
+                              <TextBlock Text="→" Foreground="{StaticResource SelectionBrush}" FontWeight="Bold" />
+                              <TextBlock Text="{Binding ToText}" FontWeight="SemiBold" />
+                            </StackPanel>
+                            <TextBlock Classes="hint" Text="{Binding Details}" />
+                            <TextBlock Text="{Binding Issue}" IsVisible="{Binding HasIssue}" TextWrapping="Wrap" FontSize="12"
+                                       Foreground="{DynamicResource ErrorBrush}" />
+                          </StackPanel>
+                          <Button Grid.Column="1" Classes="icon" VerticalAlignment="Top" Command="{Binding Remove}" ToolTip.Tip="Удалить связь">
+                            <PathIcon Data="{StaticResource IconDelete}" />
+                          </Button>
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <TextBlock Classes="paneHeader" Text="Новая связь" Margin="0,8,0,0" />
+                <Grid ColumnDefinitions="*,Auto,*">
+                  <StackPanel Spacing="6">
+                    <TextBlock Classes="hint" Text="Многие — таблица фактов" />
+                    <ComboBox ItemsSource="{Binding Tables}" SelectedItem="{Binding RelationshipFromTable}" />
+                    <ComboBox ItemsSource="{Binding RelationshipFromColumns}" SelectedItem="{Binding RelationshipFromColumn}" PlaceholderText="Ключ" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" Text="→" FontSize="20" Margin="14,22,14,0" VerticalAlignment="Center"
+                             Foreground="{StaticResource SelectionBrush}" />
+                  <StackPanel Grid.Column="2" Spacing="6">
+                    <TextBlock Classes="hint" Text="Один — справочник (уникальный ключ)" />
+                    <ComboBox ItemsSource="{Binding Tables}" SelectedItem="{Binding RelationshipToTable}" />
+                    <ComboBox ItemsSource="{Binding RelationshipToColumns}" SelectedItem="{Binding RelationshipToColumn}" PlaceholderText="Ключ" />
+                  </StackPanel>
+                </Grid>
+                <Button Classes="accent" Content="Добавить связь" Command="{Binding AddRelationshipCommand}" />
+              </StackPanel>
+            </ScrollViewer>
+          </TabItem>
         </TabControl>
       </DockPanel>
 
