@@ -3,9 +3,11 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using PbForMac.Services;
 using PbForMac.ViewModels;
 using PbForMac.Views;
+using PbForMac.Views.Dialogs;
 
 namespace PbForMac;
 
@@ -28,6 +30,24 @@ public partial class App : Application
 
             var window = new MainWindow();
             var viewModel = new MainWindowViewModel(new DialogService(window), theme, settings);
+
+            // Ошибка в обработчике интерфейса не должна закрывать приложение: показываем её и пишем в журнал.
+            Dispatcher.UIThread.UnhandledException += (_, e) =>
+            {
+                e.Handled = true;
+                ErrorLog.Write(e.Exception);
+                if (window.IsVisible)
+                {
+                    _ = new MessageWindow("Произошла ошибка",
+                        $"{e.Exception.Message}\n\nДействие не выполнено, но работу можно продолжить. " +
+                        $"Подробности записаны в журнал:\n{ErrorLog.FilePath}", confirm: false).ShowDialog<bool>(window);
+                }
+            };
+            TaskScheduler.UnobservedTaskException += (_, e) =>
+            {
+                ErrorLog.Write(e.Exception);
+                e.SetObserved();
+            };
             window.DataContext = viewModel;
             desktop.MainWindow = window;
 
