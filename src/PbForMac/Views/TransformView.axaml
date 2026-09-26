@@ -1,0 +1,195 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PbForMac.ViewModels"
+             xmlns:controls="using:PbForMac.Controls"
+             x:Class="PbForMac.Views.TransformView"
+             x:DataType="vm:TransformViewModel">
+
+  <Grid>
+    <StackPanel IsVisible="{Binding !HasTables}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+      <PathIcon Data="{StaticResource IconModel}" Width="48" Height="48" Foreground="{DynamicResource SubtleTextBrush}" />
+      <TextBlock Text="Модель пуста" FontSize="18" HorizontalAlignment="Center" />
+      <TextBlock Classes="hint" HorizontalAlignment="Center" Text="Загрузите данные, чтобы добавлять вычисляемые столбцы, группировки и фильтры." />
+    </StackPanel>
+
+    <Grid ColumnDefinitions="270,*,300" IsVisible="{Binding HasTables}">
+
+      <!-- Таблица и столбцы -->
+      <Border Classes="pane" BorderThickness="0,0,1,0">
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Top">
+            <TextBlock Classes="paneHeader" Text="Таблица" />
+            <ComboBox ItemsSource="{Binding Tables}" SelectedItem="{Binding SelectedTable}" />
+            <TextBlock Classes="caption" Text="Столбцы" />
+          </StackPanel>
+
+          <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,10,0,0">
+            <StackPanel IsVisible="{Binding HasColumn}" Spacing="6">
+              <TextBlock Classes="caption" Text="Выбранный столбец" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Text="{Binding NewColumnName}" Watermark="Новое имя" />
+                <Button Grid.Column="1" Margin="6,0,0,0" Content="Переименовать" Command="{Binding RenameColumnCommand}" />
+              </Grid>
+              <Grid ColumnDefinitions="*,Auto">
+                <ComboBox ItemsSource="{Binding ColumnTypes}" SelectedItem="{Binding TargetType}" />
+                <Button Grid.Column="1" Margin="6,0,0,0" Content="Сменить тип" Command="{Binding ChangeTypeCommand}" />
+              </Grid>
+              <Button HorizontalAlignment="Stretch" Command="{Binding RemoveColumnCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <PathIcon Data="{StaticResource IconDelete}" Width="12" Height="12" />
+                  <TextBlock Text="Удалить столбец" />
+                </StackPanel>
+              </Button>
+            </StackPanel>
+            <Button HorizontalAlignment="Stretch" Content="Удалить дубликаты строк" Command="{Binding RemoveDuplicatesCommand}" />
+          </StackPanel>
+
+          <ListBox ItemsSource="{Binding Columns}" SelectedItem="{Binding SelectedColumn}" Background="Transparent">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:ColumnItem">
+                <Grid ColumnDefinitions="24,*">
+                  <TextBlock Text="{Binding TypeGlyph}" Foreground="{DynamicResource SubtleTextBrush}" ToolTip.Tip="{Binding TypeLabel}" />
+                  <TextBlock Grid.Column="1" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+      </Border>
+
+      <!-- Инструменты преобразования -->
+      <DockPanel Grid.Column="1" Margin="12">
+        <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,8">
+          <Border Classes="error" IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <TextBlock Text="{Binding Error}" />
+          </Border>
+          <Border Classes="info" IsVisible="{Binding Info, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <TextBlock Text="{Binding Info}" />
+          </Border>
+        </StackPanel>
+
+        <TabControl>
+          <TabItem Header="Предпросмотр">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Top" Classes="hint" Margin="0,0,0,6" Text="Первые 500 строк таблицы после всех шагов." />
+              <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
+                <controls:DataTableGrid Source="{Binding Preview}" />
+              </Border>
+            </DockPanel>
+          </TabItem>
+
+          <TabItem Header="Вычисляемый столбец">
+            <ScrollViewer>
+              <StackPanel Spacing="8" MaxWidth="720" HorizontalAlignment="Left">
+                <TextBlock Classes="caption" Text="Имя нового столбца" />
+                <TextBox Text="{Binding CalcName}" Watermark="Например, Выручка" />
+                <TextBlock Classes="caption" Text="Выражение" />
+                <TextBox Text="{Binding CalcExpression}" Watermark="[Цена] * [Количество]" AcceptsReturn="True"
+                         MinHeight="70" TextWrapping="Wrap" FontFamily="Menlo, Consolas, monospace" />
+                <TextBlock Classes="hint" Text="Нажмите на столбец, чтобы вставить его в выражение:" />
+                <ItemsControl ItemsSource="{Binding Columns}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ColumnItem">
+                      <Button Margin="0,0,6,6" Padding="8,2" FontSize="12" Command="{Binding Insert}" Content="{Binding Name}" />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Button Classes="accent" Content="Добавить столбец" Command="{Binding AddCalculatedColumnCommand}" />
+                <Border Classes="info" Margin="0,8,0,0">
+                  <TextBlock Text="{Binding ExpressionHelp}" FontFamily="Menlo, Consolas, monospace" FontSize="12" />
+                </Border>
+              </StackPanel>
+            </ScrollViewer>
+          </TabItem>
+
+          <TabItem Header="Группировка">
+            <ScrollViewer>
+              <Grid ColumnDefinitions="*,24,*" MaxWidth="820" HorizontalAlignment="Left">
+                <StackPanel>
+                  <TextBlock Classes="caption" Text="Группировать по" />
+                  <ItemsControl ItemsSource="{Binding GroupColumns}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:CheckItem">
+                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="6">
+                  <TextBlock Classes="caption" Text="Агрегаты" />
+                  <ComboBox ItemsSource="{Binding Columns}" SelectedValue="{Binding AggregationColumn}" SelectedValueBinding="{ReflectionBinding Name}" />
+                  <ComboBox ItemsSource="{Binding Aggregations}" SelectedItem="{Binding AggregationKind}" />
+                  <TextBox Text="{Binding AggregationName}" Watermark="Имя результата (необязательно)" />
+                  <Button Content="Добавить агрегат" Command="{Binding AddAggregationCommand}" />
+                  <ItemsControl ItemsSource="{Binding AggregationSpecs}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:AggregationSpecItem">
+                        <Border Classes="chip" HorizontalAlignment="Left">
+                          <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="{Binding Text}" FontSize="12" VerticalAlignment="Center" />
+                            <Button Classes="icon" Command="{Binding Remove}">
+                              <PathIcon Data="{StaticResource IconClose}" />
+                            </Button>
+                          </StackPanel>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <TextBlock Classes="caption" Text="Имя новой таблицы" />
+                  <TextBox Text="{Binding GroupTableName}" Watermark="Сформируется автоматически" />
+                  <Button Classes="accent" Content="Создать таблицу" Command="{Binding CreateGroupByCommand}" />
+                  <TextBlock Classes="hint" Text="Результат — новая таблица модели, которую можно использовать в визуалах." />
+                </StackPanel>
+              </Grid>
+            </ScrollViewer>
+          </TabItem>
+
+          <TabItem Header="Фильтр строк">
+            <StackPanel Spacing="8" MaxWidth="520" HorizontalAlignment="Left">
+              <TextBlock Classes="hint" Text="Оставить в таблице только строки, где:" />
+              <ComboBox ItemsSource="{Binding Columns}" SelectedValue="{Binding FilterColumn}" SelectedValueBinding="{ReflectionBinding Name}" />
+              <ComboBox ItemsSource="{Binding FilterOperators}" SelectedItem="{Binding SelectedOperator}" />
+              <TextBox Text="{Binding FilterValue}" Watermark="Значение" IsEnabled="{Binding FilterNeedsValue}" />
+              <Button Classes="accent" Content="Добавить шаг" Command="{Binding AddFilterStepCommand}" />
+            </StackPanel>
+          </TabItem>
+        </TabControl>
+      </DockPanel>
+
+      <!-- Применённые шаги -->
+      <Border Grid.Column="2" Classes="pane" BorderThickness="1,0,0,0">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" Classes="paneHeader" Text="Применённые шаги" />
+          <TextBlock DockPanel.Dock="Top" Classes="hint" IsVisible="{Binding !HasSteps}"
+                     Text="Шагов пока нет. Каждое преобразование записывается сюда и повторяется при обновлении данных." />
+          <ScrollViewer>
+            <ItemsControl ItemsSource="{Binding Steps}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:StepItemViewModel">
+                  <Border Background="{DynamicResource PageBrush}" CornerRadius="4" Padding="8" Margin="0,0,0,6"
+                          BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                      <TextBlock Text="{Binding Number}" Classes="hint" Margin="0,0,6,0" />
+                      <StackPanel Grid.Column="1" Spacing="2">
+                        <TextBlock Text="{Binding Table}" FontSize="11" Foreground="{DynamicResource SubtleTextBrush}" />
+                        <TextBlock Text="{Binding Description}" TextWrapping="Wrap" FontSize="12" />
+                        <TextBlock Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" FontSize="12"
+                                   Foreground="{DynamicResource ErrorBrush}" />
+                      </StackPanel>
+                      <Button Grid.Column="2" Classes="icon" VerticalAlignment="Top" Command="{Binding Remove}" ToolTip.Tip="Удалить шаг">
+                        <PathIcon Data="{StaticResource IconDelete}" />
+                      </Button>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </DockPanel>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

@@ -1,0 +1,128 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PbForMac.ViewModels"
+             xmlns:controls="using:PbForMac.Controls"
+             x:Class="PbForMac.Views.DataView"
+             x:DataType="vm:DataViewModel">
+
+  <Grid>
+    <!-- Пустое состояние -->
+    <StackPanel IsVisible="{Binding !HasTables}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+      <PathIcon Data="{StaticResource IconData}" Width="48" Height="48" Foreground="{DynamicResource SubtleTextBrush}" />
+      <TextBlock Text="Данные ещё не загружены" FontSize="18" HorizontalAlignment="Center" />
+      <TextBlock Classes="hint" HorizontalAlignment="Center" TextAlignment="Center"
+                 Text="Поддерживаются CSV, Excel, JSON, XML и SQLite.&#10;Файлы можно перетащить прямо в окно." />
+      <Button Classes="accent" HorizontalAlignment="Center" Command="{Binding ImportCommand}" Content="Получить данные" />
+    </StackPanel>
+
+    <Grid ColumnDefinitions="230,*,260" IsVisible="{Binding HasTables}">
+
+      <!-- Список таблиц -->
+      <Border Classes="pane" BorderThickness="0,0,1,0">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" Classes="paneHeader" Text="Таблицы" />
+          <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,8,0,0">
+            <Button HorizontalAlignment="Stretch" Command="{Binding ImportCommand}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Data="{StaticResource IconAdd}" Width="12" Height="12" />
+                <TextBlock Text="Добавить данные" />
+              </StackPanel>
+            </Button>
+            <Button HorizontalAlignment="Stretch" Command="{Binding RemoveTableCommand}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Data="{StaticResource IconDelete}" Width="12" Height="12" />
+                <TextBlock Text="Удалить таблицу" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+          <ListBox ItemsSource="{Binding Tables}" SelectedItem="{Binding SelectedTable}" Background="Transparent">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:TableItem">
+                <StackPanel Spacing="2">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Classes="hint" Text="{Binding Description}" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+      </Border>
+
+      <!-- Таблица с поиском и фильтрами -->
+      <DockPanel Grid.Column="1" Margin="12">
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
+          <TextBox Text="{Binding SearchText}" Watermark="Поиск по всем столбцам…" />
+          <TextBlock Grid.Column="1" Classes="hint" Text="{Binding RowInfo}" VerticalAlignment="Center" Margin="12,0" />
+          <Button Grid.Column="2" Command="{Binding ExportCsvCommand}" ToolTip.Tip="Экспорт видимых строк в CSV">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <PathIcon Data="{StaticResource IconDownload}" Width="14" Height="14" />
+              <TextBlock Text="Экспорт CSV" />
+            </StackPanel>
+          </Button>
+        </Grid>
+
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,180,160,*,Auto" Margin="0,0,0,8">
+          <PathIcon Data="{StaticResource IconFilter}" Width="16" Height="16" Margin="0,0,8,0" />
+          <ComboBox Grid.Column="1" ItemsSource="{Binding Columns}" SelectedItem="{Binding FilterColumn}" PlaceholderText="Столбец" />
+          <ComboBox Grid.Column="2" Margin="6,0" ItemsSource="{Binding FilterOperators}" SelectedItem="{Binding SelectedOperator}" />
+          <TextBox Grid.Column="3" Text="{Binding FilterValue}" Watermark="Значение" IsEnabled="{Binding FilterNeedsValue}" />
+          <Button Grid.Column="4" Margin="6,0,0,0" Command="{Binding AddFilterCommand}" Content="Добавить фильтр" IsDefault="False" />
+        </Grid>
+
+        <StackPanel DockPanel.Dock="Top" IsVisible="{Binding HasFilters}" Margin="0,0,0,6">
+          <ItemsControl ItemsSource="{Binding Filters}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:FilterItemViewModel">
+                <Border Classes="chip">
+                  <StackPanel Orientation="Horizontal" Spacing="4">
+                    <TextBlock Text="{Binding Text}" VerticalAlignment="Center" FontSize="12" />
+                    <Button Classes="icon" Command="{Binding Remove}" ToolTip.Tip="Убрать фильтр">
+                      <PathIcon Data="{StaticResource IconClose}" />
+                    </Button>
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Button Content="Сбросить" Command="{Binding ClearFiltersCommand}" />
+            <Button Content="Применить как шаги модели" Command="{Binding ApplyFiltersAsStepsCommand}"
+                    ToolTip.Tip="Строки, не прошедшие фильтр, будут удалены из таблицы (шаг «Фильтр строк»)" />
+          </StackPanel>
+        </StackPanel>
+
+        <Border DockPanel.Dock="Top" Classes="error" Margin="0,0,0,8" IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <TextBlock Text="{Binding Error}" />
+        </Border>
+
+        <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
+          <controls:DataTableGrid Source="{Binding Slice}" />
+        </Border>
+      </DockPanel>
+
+      <!-- Профиль столбца -->
+      <Border Grid.Column="2" Classes="pane" BorderThickness="1,0,0,0">
+        <StackPanel>
+          <TextBlock Classes="paneHeader" Text="Профиль столбца" />
+          <ComboBox ItemsSource="{Binding Columns}" SelectedItem="{Binding ProfileColumn}" />
+          <ItemsControl ItemsSource="{Binding Profile}" Margin="0,12,0,0">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:StatItem">
+                <Grid ColumnDefinitions="Auto,*" Margin="0,3">
+                  <TextBlock Classes="hint" Text="{Binding Label}" />
+                  <TextBlock Grid.Column="1" Text="{Binding Value}" HorizontalAlignment="Right" TextAlignment="Right"
+                             TextTrimming="CharacterEllipsis" Margin="12,0,0,0" ToolTip.Tip="{Binding Value}" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock Classes="hint" Margin="0,16,0,0"
+                     Text="Показатели считаются по строкам, прошедшим поиск и фильтры. Клик по заголовку столбца сортирует таблицу." />
+        </StackPanel>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>
