@@ -30,6 +30,8 @@ public abstract partial class VisualViewModel : ViewModelBase
         _aggregation = Labels.Find(definition.Aggregation);
         _granularity = Labels.Find(definition.DateGranularity);
         _topN = definition.TopN;
+        _showLegend = definition.ShowLegend;
+        _showDataLabels = definition.ShowDataLabels;
         UpdateFieldOptions();
         _loading = false;
     }
@@ -84,6 +86,12 @@ public abstract partial class VisualViewModel : ViewModelBase
     [ObservableProperty]
     private decimal? _topN;
 
+    [ObservableProperty]
+    private bool _showLegend;
+
+    [ObservableProperty]
+    private bool _showDataLabels;
+
     public bool HasMessage => Message is not null;
 
     public string DisplayTitle => string.IsNullOrWhiteSpace(Title) ? AutoTitle : Title;
@@ -107,6 +115,7 @@ public abstract partial class VisualViewModel : ViewModelBase
     public virtual bool ShowsValues => true;
     public virtual bool ShowsAggregation => true;
     public virtual bool ShowsTopN => true;
+    public virtual bool ShowsFormatting => false;
 
     public bool ShowsGranularity =>
         ShowsCategory && Kind != VisualKind.Scatter && GetTable() is { } table
@@ -243,7 +252,71 @@ public abstract partial class VisualViewModel : ViewModelBase
         if (!_loading) Refresh();
     }
 
+    partial void OnShowLegendChanged(bool value)
+    {
+        Definition.ShowLegend = value;
+        if (!_loading) Refresh();
+    }
+
+    partial void OnShowDataLabelsChanged(bool value)
+    {
+        Definition.ShowDataLabels = value;
+        if (!_loading) Refresh();
+    }
+
     public void ClearCategory() => CategoryField = null;
+
+    /// <summary>
+    /// Назначает поле из панели «Поля»: категория, если пуста, иначе значение.
+    /// При другой таблице — переключает визуал на неё.
+    /// </summary>
+    public void AssignField(string tableName, string columnName)
+    {
+        if (string.IsNullOrWhiteSpace(tableName) || string.IsNullOrWhiteSpace(columnName))
+            return;
+
+        if (!string.Equals(Table, tableName, StringComparison.OrdinalIgnoreCase))
+            Table = tableName;
+
+        var table = GetTable();
+        if (table is null)
+            return;
+
+        // Для связанного поля — полный ref; для своей таблицы — имя столбца.
+        var fieldRef = columnName;
+        if (!string.Equals(table.TableName, tableName, StringComparison.OrdinalIgnoreCase))
+            fieldRef = FieldRef.Format(tableName, columnName);
+        else if (Field(table, columnName) is null && Field(table, FieldRef.Format(tableName, columnName)) is { } linked)
+            fieldRef = linked.Ref;
+
+        if (ShowsCategory && CategoryField is null)
+        {
+            CategoryField = fieldRef;
+            return;
+        }
+
+        if (ShowsValues)
+        {
+            var option = ValueOptions.FirstOrDefault(o =>
+                string.Equals(o.Name, fieldRef, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(FieldRef.Display(o.Name), columnName, StringComparison.OrdinalIgnoreCase));
+            if (option is not null)
+            {
+                option.IsChecked = !option.IsChecked;
+                return;
+            }
+            if (!Definition.ValueFields.Contains(fieldRef))
+            {
+                Definition.ValueFields.Add(fieldRef);
+                UpdateFieldOptions();
+                Refresh();
+            }
+            return;
+        }
+
+        if (ShowsCategory)
+            CategoryField = fieldRef;
+    }
 
     public void Select() => Owner.Select(this);
 

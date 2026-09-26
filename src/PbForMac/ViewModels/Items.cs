@@ -56,16 +56,42 @@ public sealed class FilterItemViewModel(FilterDefinition definition, Action<Filt
 }
 
 /// <summary>Шаг преобразования в списке «Применённые шаги».</summary>
-public sealed class StepItemViewModel(int index, TransformStep step, string? error, Action<StepItemViewModel> remove)
+public sealed partial class StepItemViewModel : ObservableObject
 {
-    public TransformStep Step { get; } = step;
-    public string Number => $"{index}.";
+    private readonly Action<StepItemViewModel> _remove;
+    private readonly Action<StepItemViewModel>? _toggled;
+
+    public StepItemViewModel(int index, TransformStep step, string? error, Action<StepItemViewModel> remove,
+        Action<StepItemViewModel>? toggled = null)
+    {
+        Index = index;
+        Step = step;
+        Error = error;
+        _remove = remove;
+        _toggled = toggled;
+        _isEnabled = step.Enabled;
+    }
+
+    public TransformStep Step { get; }
+    public int Index { get; }
+    public string Number => $"{Index}.";
     public string Table => Step.Table;
     public string Description => Step.Description;
-    public string? Error { get; } = error;
+    public string? Error { get; }
     public bool HasError => Error is not null;
 
-    public void Remove() => remove(this);
+    [ObservableProperty]
+    private bool _isEnabled;
+
+    partial void OnIsEnabledChanged(bool value)
+    {
+        if (Step.Enabled == value)
+            return;
+        Step.Enabled = value;
+        _toggled?.Invoke(this);
+    }
+
+    public void Remove() => _remove(this);
 }
 
 /// <summary>Агрегат для шага группировки.</summary>
@@ -75,6 +101,43 @@ public sealed class AggregationSpecItem(AggregationSpec spec, Action<Aggregation
     public string Text => $"{Labels.Of(Spec.Aggregation)} «{Spec.Column}» → {Spec.OutputName}";
 
     public void Remove() => remove(this);
+}
+
+/// <summary>Таблица в панели «Поля» отчёта.</summary>
+public sealed partial class FieldTableNode : ObservableObject
+{
+    public FieldTableNode(string name, IEnumerable<FieldColumnItem> columns)
+    {
+        Name = name;
+        foreach (var column in columns)
+            Columns.Add(column);
+    }
+
+    public string Name { get; }
+    public ObservableCollection<FieldColumnItem> Columns { get; } = [];
+
+    [ObservableProperty]
+    private bool _isExpanded = true;
+
+    public void Toggle() => IsExpanded = !IsExpanded;
+}
+
+/// <summary>Столбец в панели «Поля»; клик назначает поле выбранному визуалу.</summary>
+public sealed class FieldColumnItem(string table, string name, ColumnType type, Action<FieldColumnItem> assign)
+{
+    public string Table { get; } = table;
+    public string Name { get; } = name;
+    public ColumnType Type { get; } = type;
+
+    public string TypeGlyph => Type switch
+    {
+        ColumnType.Integer or ColumnType.Decimal => "Σ",
+        ColumnType.Date => "◷",
+        ColumnType.Boolean => "✓",
+        _ => "A",
+    };
+
+    public void Assign() => assign(this);
 }
 
 /// <summary>Показатель профиля столбца.</summary>

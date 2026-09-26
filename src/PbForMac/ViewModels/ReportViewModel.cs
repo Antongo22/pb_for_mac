@@ -80,6 +80,7 @@ public sealed partial class ReportViewModel : ViewModelBase
     public IReadOnlyList<VisualKindItem> VisualKinds { get; }
     public ObservableCollection<VisualViewModel> Visuals { get; } = [];
     public ObservableCollection<string> TableNames { get; } = [];
+    public ObservableCollection<FieldTableNode> FieldTables { get; } = [];
     public ObservableCollection<FilterItemViewModel> Filters { get; } = [];
     public ObservableCollection<string> FilterColumns { get; } = [];
     public IReadOnlyList<Option<FilterOperator>> FilterOperators => Labels.FilterOperators;
@@ -150,10 +151,35 @@ public sealed partial class ReportViewModel : ViewModelBase
         if (FilterTable is null || !TableNames.Contains(FilterTable))
             FilterTable = TableNames.FirstOrDefault();
         UpdateFilterColumns();
+        RebuildFieldTables();
         OnPropertyChanged(nameof(HasData));
 
         foreach (var visual in Visuals)
             visual.OnModelChanged();
+    }
+
+    private void RebuildFieldTables()
+    {
+        FieldTables.Clear();
+        foreach (DataTable table in Model.Tables)
+        {
+            var columns = table.Columns.Cast<DataColumn>()
+                .Select(c => new FieldColumnItem(table.TableName, c.ColumnName, TypeInference.FromClr(c.DataType), AssignFieldFromPane));
+            FieldTables.Add(new FieldTableNode(table.TableName, columns));
+        }
+    }
+
+    /// <summary>Клик по полю в панели «Поля» — назначает его выбранному визуалу.</summary>
+    private void AssignFieldFromPane(FieldColumnItem field)
+    {
+        if (SelectedVisual is null)
+        {
+            var definition = new VisualDefinition { Kind = VisualKind.Column, Table = field.Table };
+            (definition.Width, definition.Height) = DefaultSize(VisualKind.Column);
+            (definition.X, definition.Y) = FindFreeSpot(definition.Width, definition.Height);
+            SelectedVisual = AddVisual(definition);
+        }
+        SelectedVisual.AssignField(field.Table, field.Name);
     }
 
     private void UpdateFilterColumns()
@@ -242,6 +268,8 @@ public sealed partial class ReportViewModel : ViewModelBase
             Aggregation = source.Aggregation,
             DateGranularity = source.DateGranularity,
             TopN = source.TopN,
+            ShowLegend = source.ShowLegend,
+            ShowDataLabels = source.ShowDataLabels,
             Width = source.Width,
             Height = source.Height,
         };

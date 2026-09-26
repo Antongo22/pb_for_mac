@@ -33,6 +33,12 @@ public sealed class VisualDefinition
     /// <summary>Сколько категорий показывать (0 — все).</summary>
     public int TopN { get; set; }
 
+    /// <summary>Показывать легенду на диаграмме.</summary>
+    public bool ShowLegend { get; set; } = true;
+
+    /// <summary>Подписи данных на диаграмме.</summary>
+    public bool ShowDataLabels { get; set; }
+
     /// <summary>Выбранные значения среза.</summary>
     public List<string> SelectedValues { get; set; } = [];
 

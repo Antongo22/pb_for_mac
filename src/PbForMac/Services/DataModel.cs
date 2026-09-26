@@ -69,9 +69,7 @@ public sealed class DataModel
         var copy = _tables.Select(t => t.Copy()).ToList();
         TransformEngine.Apply(copy, step); // бросает исключение с понятным текстом
         Steps.Add(step);
-        _tables = copy;
-        ValidateRelationships();
-        Changed?.Invoke(this, EventArgs.Empty);
+        Rebuild();
     }
 
     /// <summary>Добавляет связь «многие к одному», проверив таблицы и столбцы.</summary>
@@ -270,6 +268,8 @@ public sealed class DataModel
 
         foreach (var step in Steps)
         {
+            if (!step.Enabled)
+                continue;
             try
             {
                 TransformEngine.Apply(tables, step);

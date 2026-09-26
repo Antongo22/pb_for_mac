@@ -31,6 +31,9 @@ public abstract class TransformStep
 
     [JsonIgnore]
     public abstract string Description { get; }
+
+    /// <summary>Выключенный шаг пропускается при пересборке модели (как в Power Query).</summary>
+    public bool Enabled { get; set; } = true;
 }
 
 public sealed class RenameColumnStep : TransformStep

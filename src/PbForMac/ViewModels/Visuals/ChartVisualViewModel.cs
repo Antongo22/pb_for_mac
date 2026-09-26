@@ -53,6 +53,7 @@ public sealed partial class ChartVisualViewModel : VisualViewModel
     public override string ValuesCaption => Kind == VisualKind.Scatter ? "Ось Y" : "Значения";
     public override bool ShowsAggregation => Kind != VisualKind.Scatter;
     public override bool ShowsTopN => Kind != VisualKind.Scatter;
+    public override bool ShowsFormatting => true;
 
     public override string AutoTitle => Kind == VisualKind.Scatter && CategoryField is not null && Definition.ValueFields.Count > 0
         ? $"{FieldRef.Display(Definition.ValueFields[0])} от {FieldRef.Display(CategoryField)}"
@@ -122,7 +123,7 @@ public sealed partial class ChartVisualViewModel : VisualViewModel
         Series = result.Series.Select((values, i) => CreateSeries(result.SeriesNames[i], values, ChartPalette.At(i))).ToArray();
         XAxes = [CategoryAxis(result.Categories)];
         YAxes = [ValueAxis(fromZero: Kind == VisualKind.Column && MinValue(result) >= 0)];
-        LegendPosition = result.Series.Count > 1 ? LegendPosition.Bottom : LegendPosition.Hidden;
+        LegendPosition = ResolveLegend(result.Series.Count > 1);
     }
 
     private ISeries CreateSeries(string name, double[] values, SKColor color) => Kind switch
@@ -137,6 +138,9 @@ public sealed partial class ChartVisualViewModel : VisualViewModel
             GeometryFill = new SolidColorPaint(SKColors.White),
             GeometrySize = values.Length > 40 ? 0 : 7,
             LineSmoothness = 0.2,
+            DataLabelsPaint = DataLabelsPaint(),
+            DataLabelsSize = 11,
+            DataLabelsFormatter = p => ValueFormatter.Compact(p.Coordinate.PrimaryValue),
         },
         VisualKind.Area => new LineSeries<double>
         {
@@ -146,6 +150,9 @@ public sealed partial class ChartVisualViewModel : VisualViewModel
             Stroke = new SolidColorPaint(color, 2),
             GeometrySize = 0,
             LineSmoothness = 0.3,
+            DataLabelsPaint = DataLabelsPaint(),
+            DataLabelsSize = 11,
+            DataLabelsFormatter = p => ValueFormatter.Compact(p.Coordinate.PrimaryValue),
         },
         _ => new ColumnSeries<double>
         {
@@ -154,6 +161,10 @@ public sealed partial class ChartVisualViewModel : VisualViewModel
             Fill = new SolidColorPaint(color),
             MaxBarWidth = 60,
             Padding = 4,
+            DataLabelsPaint = DataLabelsPaint(),
+            DataLabelsSize = 11,
+            DataLabelsPosition = DataLabelsPosition.Top,
+            DataLabelsFormatter = p => ValueFormatter.Compact(p.Coordinate.PrimaryValue),
         },
     };
 
@@ -168,10 +179,14 @@ public sealed partial class ChartVisualViewModel : VisualViewModel
             Fill = new SolidColorPaint(ChartPalette.At(i)),
             MaxBarWidth = 40,
             Padding = 3,
+            DataLabelsPaint = DataLabelsPaint(),
+            DataLabelsSize = 11,
+            DataLabelsPosition = DataLabelsPosition.End,
+            DataLabelsFormatter = p => ValueFormatter.Compact(p.Coordinate.PrimaryValue),
         }).ToArray();
         XAxes = [ValueAxis(fromZero: MinValue(result) >= 0)];
         YAxes = [CategoryAxis(categories, rotate: false)];
-        LegendPosition = result.Series.Count > 1 ? LegendPosition.Bottom : LegendPosition.Hidden;
+        LegendPosition = ResolveLegend(result.Series.Count > 1);
     }
 
     private void BuildPie(AggregatedResult result)
@@ -193,19 +208,20 @@ public sealed partial class ChartVisualViewModel : VisualViewModel
         }
 
         var total = slices.Sum(s => s.Value);
+        var showLabels = ShowDataLabels;
         Series = slices.Select((s, i) => (ISeries)new PieSeries<double>
         {
             Name = s.Label,
             Values = [s.Value],
             Fill = new SolidColorPaint(ChartPalette.At(i)),
             InnerRadius = 40,
-            DataLabelsPaint = new SolidColorPaint(SKColors.White),
+            DataLabelsPaint = showLabels ? new SolidColorPaint(SKColors.White) : null,
             DataLabelsSize = 11,
             DataLabelsPosition = PolarLabelsPosition.Middle,
-            DataLabelsFormatter = p => s.Value / total >= 0.06 ? $"{s.Value / total:P0}" : "",
+            DataLabelsFormatter = p => showLabels && s.Value / total >= 0.06 ? $"{s.Value / total:P0}" : "",
             ToolTipLabelFormatter = p => $"{ValueFormatter.Number(s.Value)} ({s.Value / total:P1})",
         }).ToArray();
-        LegendPosition = LegendPosition.Right;
+        LegendPosition = ResolveLegend(true, LegendPosition.Right);
     }
 
     private void BuildScatter(DataTable table)
@@ -244,8 +260,14 @@ public sealed partial class ChartVisualViewModel : VisualViewModel
         ];
         XAxes = [ValueAxis(x.Name)];
         YAxes = [ValueAxis(y.Name)];
-        LegendPosition = LegendPosition.Hidden;
+        LegendPosition = ResolveLegend(false);
     }
+
+    private LegendPosition ResolveLegend(bool preferShow, LegendPosition whenOn = LegendPosition.Bottom) =>
+        ShowLegend && preferShow ? whenOn : LegendPosition.Hidden;
+
+    private SolidColorPaint? DataLabelsPaint() =>
+        ShowDataLabels ? new SolidColorPaint(ChartPalette.Text) : null;
 
     private static Axis CategoryAxis(IReadOnlyList<string> labels, bool rotate = true) => new()
     {

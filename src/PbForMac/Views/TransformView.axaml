@@ -298,15 +298,17 @@
                 <DataTemplate x:DataType="vm:StepItemViewModel">
                   <Border Background="{DynamicResource PageBrush}" CornerRadius="4" Padding="8" Margin="0,0,0,6"
                           BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
-                    <Grid ColumnDefinitions="Auto,*,Auto">
-                      <TextBlock Text="{Binding Number}" Classes="hint" Margin="0,0,6,0" />
-                      <StackPanel Grid.Column="1" Spacing="2">
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                      <CheckBox IsChecked="{Binding IsEnabled}" VerticalAlignment="Top" Margin="0,0,4,0"
+                                ToolTip.Tip="Включить или выключить шаг (как в Power Query)" />
+                      <TextBlock Grid.Column="1" Text="{Binding Number}" Classes="hint" Margin="0,2,6,0" />
+                      <StackPanel Grid.Column="2" Spacing="2">
                         <TextBlock Text="{Binding Table}" FontSize="11" Foreground="{DynamicResource SubtleTextBrush}" />
                         <TextBlock Text="{Binding Description}" TextWrapping="Wrap" FontSize="12" />
                         <TextBlock Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" FontSize="12"
                                    Foreground="{DynamicResource ErrorBrush}" />
                       </StackPanel>
-                      <Button Grid.Column="2" Classes="icon" VerticalAlignment="Top" Command="{Binding Remove}" ToolTip.Tip="Удалить шаг">
+                      <Button Grid.Column="3" Classes="icon" VerticalAlignment="Top" Command="{Binding Remove}" ToolTip.Tip="Удалить шаг">
                         <PathIcon Data="{StaticResource IconDelete}" />
                       </Button>
                     </Grid>

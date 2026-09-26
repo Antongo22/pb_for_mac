@@ -9,13 +9,64 @@
 
   <Grid>
     <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="220" MinWidth="160" MaxWidth="420" />
+      <ColumnDefinition Width="Auto" />
       <ColumnDefinition Width="*" MinWidth="400" />
       <ColumnDefinition Width="Auto" />
       <ColumnDefinition Width="300" MinWidth="240" MaxWidth="600" />
     </Grid.ColumnDefinitions>
 
+    <!-- Панель «Поля» (как в Power BI) -->
+    <Border Grid.Column="0" Classes="pane" BorderThickness="0,0,1,0" Padding="0">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Margin="14,14,14,8" Spacing="4">
+          <TextBlock Classes="paneHeader" Text="Поля" Margin="0" />
+          <TextBlock Classes="hint"
+                     Text="Клик по столбцу назначает его выбранному визуалу. Если визуал не выбран — создаётся гистограмма." />
+        </StackPanel>
+        <TextBlock DockPanel.Dock="Top" Classes="hint" Margin="14,0,14,8" IsVisible="{Binding !HasData}"
+                   Text="Загрузите данные, чтобы увидеть таблицы и столбцы." />
+        <ScrollViewer>
+          <ItemsControl ItemsSource="{Binding FieldTables}" Margin="8,0,8,14">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:FieldTableNode">
+                <StackPanel Margin="0,0,0,8">
+                  <Button Classes="flat" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                          Padding="6,4" Command="{Binding Toggle}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <TextBlock Text="▾" FontSize="11" IsVisible="{Binding IsExpanded}"
+                                 Foreground="{DynamicResource SubtleTextBrush}" />
+                      <TextBlock Text="▸" FontSize="11" IsVisible="{Binding !IsExpanded}"
+                                 Foreground="{DynamicResource SubtleTextBrush}" />
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" />
+                    </StackPanel>
+                  </Button>
+                  <ItemsControl ItemsSource="{Binding Columns}" IsVisible="{Binding IsExpanded}" Margin="12,0,0,0">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:FieldColumnItem">
+                        <Button Classes="flat" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                Padding="6,3" Command="{Binding Assign}" ToolTip.Tip="Назначить полю визуала">
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{Binding TypeGlyph}" Width="14" FontSize="11"
+                                       Foreground="{DynamicResource SubtleTextBrush}" />
+                            <TextBlock Text="{Binding Name}" FontSize="12" TextTrimming="CharacterEllipsis" />
+                          </StackPanel>
+                        </Button>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </DockPanel>
+    </Border>
+
+    <GridSplitter Grid.Column="1" Classes="paneSplitter" />
+
     <!-- Холст -->
-    <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+    <ScrollViewer Grid.Column="2" x:Name="Scroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                   Background="{DynamicResource WorkspaceBrush}">
       <LayoutTransformControl Margin="24" HorizontalAlignment="Left" VerticalAlignment="Top">
         <LayoutTransformControl.LayoutTransform>
@@ -50,7 +101,7 @@
             <TextBlock Classes="hint" TextAlignment="Center" HorizontalAlignment="Center" IsVisible="{Binding !HasData}"
                        Text="Загрузите данные из CSV, Excel, JSON, XML или SQLite либо откройте готовый пример." />
             <TextBlock Classes="hint" TextAlignment="Center" HorizontalAlignment="Center" IsVisible="{Binding HasData}"
-                       Text="Выберите тип визуализации справа — поля подставятся автоматически. Настройте оси и значения в «Областях полей»." />
+                       Text="Выберите тип визуализации справа или кликните поле слева. Настройте оси в «Областях полей»." />
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" IsVisible="{Binding !HasData}">
               <Button Classes="accent" Content="Получить данные" Command="{Binding ImportCommand}" />
               <Button Content="Из папки" Command="{Binding ImportFolderCommand}" />
@@ -64,7 +115,7 @@
     </ScrollViewer>
 
     <!-- Масштаб -->
-    <Border HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,20,16" Padding="8,2"
+    <Border Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,20,16" Padding="8,2"
             CornerRadius="4" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
       <StackPanel Orientation="Horizontal" Spacing="8">
         <ToggleButton IsChecked="{Binding FitToWidth}" Content="По ширине" Padding="8,2" FontSize="12"
@@ -75,9 +126,9 @@
     </Border>
 
     <!-- Правая панель -->
-    <GridSplitter Grid.Column="1" Classes="paneSplitter" />
+    <GridSplitter Grid.Column="3" Classes="paneSplitter" />
 
-    <Border Grid.Column="2" Classes="pane" BorderThickness="1,0,0,0" Padding="0">
+    <Border Grid.Column="4" Classes="pane" BorderThickness="1,0,0,0" Padding="0">
       <ScrollViewer>
         <StackPanel Margin="14" Spacing="4">
 
@@ -158,6 +209,12 @@
                   <StackPanel IsVisible="{Binding ShowsTopN}">
                     <TextBlock Classes="caption" Text="Показать первые N категорий (0 — все)" />
                     <NumericUpDown Value="{Binding TopN}" Minimum="0" Maximum="1000" Increment="1" FormatString="0" />
+                  </StackPanel>
+
+                  <StackPanel IsVisible="{Binding ShowsFormatting}" Margin="0,8,0,0" Spacing="4">
+                    <TextBlock Classes="caption" Text="Формат" />
+                    <CheckBox Content="Показывать легенду" IsChecked="{Binding ShowLegend}" FontSize="12" />
+                    <CheckBox Content="Подписи данных" IsChecked="{Binding ShowDataLabels}" FontSize="12" />
                   </StackPanel>
 
                   <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,12,0,0">

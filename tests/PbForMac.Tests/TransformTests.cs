@@ -292,4 +292,47 @@ public class TransformTests
         Assert.Equal(";", ((SplitColumnStep)restored.Steps[11]).Delimiter);
         Assert.Equal(VisualKind.Pie, restored.Visuals[0].Kind);
     }
+
+    [Fact]
+    public void DataModel_SkipsDisabledSteps()
+    {
+        var model = new DataModel();
+        model.AddSource(new DataSourceDefinition { TableName = "Продажи" }, TestData.Sales());
+        model.AddStep(new RenameColumnStep { Table = "Продажи", Column = "Регион", NewName = "Область" });
+        model.AddStep(new RemoveColumnStep { Table = "Продажи", Column = "Цена", Enabled = false });
+
+        var table = model.GetTable("Продажи")!;
+        Assert.True(table.Columns.Contains("Область"));
+        Assert.False(table.Columns.Contains("Регион"));
+        Assert.True(table.Columns.Contains("Цена"));
+
+        model.Steps[1].Enabled = true;
+        model.Rebuild();
+        Assert.False(model.GetTable("Продажи")!.Columns.Contains("Цена"));
+    }
+
+    [Fact]
+    public void ReportSerializer_RoundTripsEnabledAndFormatting()
+    {
+        var report = new ReportDefinition
+        {
+            Sources = [new DataSourceDefinition { Kind = SourceKind.Csv, Path = "/tmp/a.csv", TableName = "A" }],
+            Steps = [new RemoveColumnStep { Table = "A", Column = "x", Enabled = false }],
+            Visuals =
+            [
+                new VisualDefinition
+                {
+                    Kind = VisualKind.Column,
+                    Table = "A",
+                    ShowLegend = false,
+                    ShowDataLabels = true,
+                },
+            ],
+        };
+
+        var restored = ReportSerializer.Deserialize(ReportSerializer.Serialize(report));
+        Assert.False(restored.Steps[0].Enabled);
+        Assert.False(restored.Visuals[0].ShowLegend);
+        Assert.True(restored.Visuals[0].ShowDataLabels);
+    }
 }

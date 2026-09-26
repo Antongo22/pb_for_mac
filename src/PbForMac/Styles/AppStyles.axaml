@@ -52,7 +52,7 @@
     <Setter Property="Height" Value="16" />
   </Style>
 
-  <!-- Маленькие кнопки-иконки -->
+  <!-- Кнопки-иконки -->
   <Style Selector="Button.icon">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="Padding" Value="4" />
@@ -63,6 +63,18 @@
   <Style Selector="Button.icon PathIcon">
     <Setter Property="Width" Value="12" />
     <Setter Property="Height" Value="12" />
+  </Style>
+
+  <!-- Плоские кнопки списка полей -->
+  <Style Selector="Button.flat">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="6,3" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="HorizontalContentAlignment" Value="Left" />
+  </Style>
+  <Style Selector="Button.flat:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ChipBrush}" />
   </Style>
 
   <!-- Кнопки типов визуалов -->
