@@ -253,7 +253,7 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
 
         DiagramHint = DiagramTables.Count == 0
             ? null
-            : "Перетаскивайте карточки за заголовок. Клик по столбцу факта, затем по столбцу справочника — новая связь. Клик по линии — выбрать связь.";
+            : "Перетаскивайте карточки за заголовок · Ctrl+колёсико — масштаб · Alt+перетаскивание или средняя кнопка — панорама. Клик по столбцу факта, затем по столбцу справочника — новая связь.";
     }
 
     private void SaveDiagramPosition(DiagramTableViewModel table, double x, double y) =>
@@ -288,7 +288,7 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
         RelationshipToTable = table.Name;
         RelationshipToColumn = column.Name;
         AddRelationship();
-        DiagramHint = "Перетаскивайте карточки за заголовок. Клик по столбцу факта, затем по столбцу справочника — новая связь.";
+        DiagramHint = "Перетаскивайте карточки · Ctrl+колёсико — масштаб · клик по столбцам — новая связь.";
     }
 
     private void ClearDiagramColumnSelection()
