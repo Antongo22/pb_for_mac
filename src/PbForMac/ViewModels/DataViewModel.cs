@@ -9,16 +9,18 @@ using PbForMac.Services;
 namespace PbForMac.ViewModels;
 
 /// <summary>Вкладка «Данные»: просмотр таблиц, поиск, фильтры и профиль столбца.</summary>
-public sealed partial class DataViewModel : ViewModelBase
+public sealed partial class DataViewModel : ViewModelBase, IColumnHeaderActions
 {
     private readonly DataModel _model;
     private readonly IDialogService _dialogs;
+    private readonly ColumnEditor _columns;
     private List<DataRow> _visibleRows = [];
 
     public DataViewModel(DataModel model, IDialogService dialogs, IRelayCommand importCommand, IRelayCommand importFolderCommand)
     {
         _model = model;
         _dialogs = dialogs;
+        _columns = new ColumnEditor(model, dialogs);
         ImportCommand = importCommand;
         ImportFolderCommand = importFolderCommand;
         _selectedOperator = Labels.FilterOperators[0];
@@ -27,6 +29,13 @@ public sealed partial class DataViewModel : ViewModelBase
 
     public IRelayCommand ImportCommand { get; }
     public IRelayCommand ImportFolderCommand { get; }
+
+    public bool CanEdit => true;
+    public string? TableName => SelectedTable?.Name;
+    public ColumnEditor Editor => _columns;
+    public IColumnHeaderActions ColumnActions => this;
+
+    public void SelectColumn(string column) => ProfileColumn = column;
     public ObservableCollection<TableItem> Tables { get; } = [];
 
     /// <summary>Таблицы, разложенные по папкам импорта (папки — первыми).</summary>

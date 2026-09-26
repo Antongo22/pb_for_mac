@@ -80,6 +80,16 @@
           </StackPanel>
 
           <ListBox ItemsSource="{Binding Columns}" SelectedItem="{Binding SelectedColumn}" Background="Transparent">
+            <ListBox.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="Удалить столбец" Command="{Binding RemoveColumnCommand}" />
+                <MenuItem Header="Удалить отмеченные" Command="{Binding RemoveCheckedColumnsCommand}" />
+                <MenuItem Header="Оставить только отмеченные" Command="{Binding KeepCheckedColumnsCommand}" />
+                <Separator />
+                <MenuItem Header="Переместить влево" Command="{Binding MoveColumnLeftCommand}" />
+                <MenuItem Header="Переместить вправо" Command="{Binding MoveColumnRightCommand}" />
+              </ContextMenu>
+            </ListBox.ContextMenu>
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="vm:ColumnItem">
                 <Grid ColumnDefinitions="Auto,24,*" Margin="0,1">
@@ -112,7 +122,7 @@
             <DockPanel>
               <TextBlock DockPanel.Dock="Top" Classes="hint" Margin="0,0,0,6" Text="Первые 500 строк таблицы после всех шагов." />
               <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
-                <controls:DataTableGrid Source="{Binding Preview}" />
+                <controls:DataTableGrid Source="{Binding Preview}" ColumnActions="{Binding ColumnActions}" />
               </Border>
             </DockPanel>
           </TabItem>

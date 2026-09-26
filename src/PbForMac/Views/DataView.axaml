@@ -131,7 +131,7 @@
         </Border>
 
         <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
-          <controls:DataTableGrid Source="{Binding Slice}" />
+          <controls:DataTableGrid Source="{Binding Slice}" ColumnActions="{Binding ColumnActions}" />
         </Border>
       </DockPanel>
 

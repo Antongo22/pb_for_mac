@@ -49,6 +49,9 @@ public sealed class DialogService(Window owner) : IDialogService
     public async Task<int> ChooseAsync(string title, string message, IReadOnlyList<string> options) =>
         await new ChoiceWindow(title, message, options).ShowDialog<int?>(owner) ?? -1;
 
+    public Task<string?> PromptAsync(string title, string message, string initial = "") =>
+        new PromptWindow(title, message, initial).ShowDialog<string?>(owner);
+
     public Task ShowMessageAsync(string title, string message) =>
         new MessageWindow(title, message, confirm: false).ShowDialog<bool>(owner);
 

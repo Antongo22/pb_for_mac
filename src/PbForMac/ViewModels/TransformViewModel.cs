@@ -9,17 +9,18 @@ using PbForMac.Services;
 namespace PbForMac.ViewModels;
 
 /// <summary>Вкладка «Модель»: столбцы таблиц и применённые шаги преобразований.</summary>
-public sealed partial class TransformViewModel : ViewModelBase
+public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderActions
 {
     private const int PreviewRows = 500;
     private readonly DataModel _model;
-
     private readonly IDialogService _dialogs;
+    private readonly ColumnEditor _columns;
 
     public TransformViewModel(DataModel model, IDialogService dialogs)
     {
         _model = model;
         _dialogs = dialogs;
+        _columns = new ColumnEditor(model, dialogs);
         _targetType = Labels.ColumnTypes[0];
         _selectedOperator = Labels.FilterOperators[0];
         _aggregationKind = Labels.Aggregations[0];
@@ -35,6 +36,14 @@ public sealed partial class TransformViewModel : ViewModelBase
     public IReadOnlyList<Option<ColumnType>> ColumnTypes => Labels.ColumnTypes;
     public IReadOnlyList<Option<FilterOperator>> FilterOperators => Labels.FilterOperators;
     public IReadOnlyList<Option<Aggregation>> Aggregations => Labels.Aggregations;
+
+    public bool CanEdit => true;
+    public string? TableName => SelectedTable;
+    public ColumnEditor Editor => _columns;
+    public IColumnHeaderActions ColumnActions => this;
+
+    public void SelectColumn(string column) =>
+        SelectedColumn = Columns.FirstOrDefault(c => c.Name == column) ?? SelectedColumn;
 
     public bool HasTables => Tables.Count > 0;
     public bool HasSteps => Steps.Count > 0;
@@ -474,9 +483,7 @@ public sealed partial class TransformViewModel : ViewModelBase
     {
         if (SelectedTable is null || SelectedColumn is null)
             return;
-        if (!await ConfirmRemoveColumnsAsync([SelectedColumn.Name]))
-            return;
-        TryAddStep(new RemoveColumnStep { Table = SelectedTable, Column = SelectedColumn.Name });
+        await _columns.RemoveAsync(SelectedTable, [SelectedColumn.Name]);
     }
 
     [RelayCommand]
@@ -485,13 +492,8 @@ public sealed partial class TransformViewModel : ViewModelBase
         if (SelectedTable is null)
             return;
         var names = Columns.Where(c => c.IsChecked).Select(c => c.Name).ToList();
-        if (names.Count == 0)
-            return;
-        if (!await ConfirmRemoveColumnsAsync(names))
-            return;
-        TryAddStep(names.Count == 1
-            ? new RemoveColumnStep { Table = SelectedTable, Column = names[0] }
-            : new RemoveColumnsStep { Table = SelectedTable, Columns = names });
+        if (names.Count > 0)
+            await _columns.RemoveAsync(SelectedTable, names);
     }
 
     [RelayCommand]
@@ -505,15 +507,7 @@ public sealed partial class TransformViewModel : ViewModelBase
             Error = "Отметьте столбцы, которые нужно оставить.";
             return;
         }
-        var removed = Columns.Where(c => !c.IsChecked).Select(c => c.Name).ToList();
-        if (removed.Count == 0)
-        {
-            Info = "Уже оставлены все столбцы.";
-            return;
-        }
-        if (!await ConfirmRemoveColumnsAsync(removed, keepMode: true))
-            return;
-        TryAddStep(new KeepColumnsStep { Table = SelectedTable, Columns = names });
+        await _columns.KeepOnlyAsync(SelectedTable, names);
     }
 
     [RelayCommand]
@@ -525,58 +519,32 @@ public sealed partial class TransformViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void MoveColumnLeft()
+    private async Task MoveColumnLeftAsync()
     {
-        if (SelectedTable is null || SelectedColumn is null || CurrentTable is null)
+        if (SelectedTable is null || SelectedColumn is null)
             return;
-        var ordinal = CurrentTable.Columns[SelectedColumn.Name]?.Ordinal ?? 0;
-        if (ordinal <= 0)
-            return;
-        var name = SelectedColumn.Name;
-        if (TryAddStep(new MoveColumnStep { Table = SelectedTable, Column = name, NewOrdinal = ordinal - 1 }))
-            SelectedColumn = Columns.FirstOrDefault(c => c.Name == name);
+        var ordinal = _columns.Ordinal(SelectedTable, SelectedColumn.Name);
+        if (ordinal is > 0)
+            await _columns.MoveAsync(SelectedTable, SelectedColumn.Name, ordinal.Value - 1);
     }
 
     [RelayCommand]
-    private void MoveColumnRight()
+    private async Task MoveColumnRightAsync()
     {
-        if (SelectedTable is null || SelectedColumn is null || CurrentTable is null)
+        if (SelectedTable is null || SelectedColumn is null)
             return;
-        var ordinal = CurrentTable.Columns[SelectedColumn.Name]?.Ordinal ?? 0;
-        if (ordinal >= CurrentTable.Columns.Count - 1)
-            return;
-        var name = SelectedColumn.Name;
-        if (TryAddStep(new MoveColumnStep { Table = SelectedTable, Column = name, NewOrdinal = ordinal + 1 }))
-            SelectedColumn = Columns.FirstOrDefault(c => c.Name == name);
-    }
-
-    private async Task<bool> ConfirmRemoveColumnsAsync(IReadOnlyList<string> columns, bool keepMode = false)
-    {
-        var related = _model.Relationships
-            .Where(r => string.Equals(r.FromTable, SelectedTable, StringComparison.OrdinalIgnoreCase)
-                        && columns.Contains(r.FromColumn, StringComparer.OrdinalIgnoreCase)
-                        || string.Equals(r.ToTable, SelectedTable, StringComparison.OrdinalIgnoreCase)
-                        && columns.Contains(r.ToColumn, StringComparer.OrdinalIgnoreCase))
-            .ToList();
-        var title = keepMode ? "Оставить выбранные столбцы" : "Удалить столбцы";
-        var action = keepMode
-            ? $"Оставить только: {string.Join(", ", Columns.Where(c => c.IsChecked).Select(c => c.Name))}. Будут удалены: {string.Join(", ", columns)}."
-            : columns.Count == 1
-                ? $"Удалить столбец «{columns[0]}»?"
-                : $"Удалить столбцы ({columns.Count}): {string.Join(", ", columns)}?";
-        if (related.Count > 0)
-            action += $"\n\nЗатронутые связи перестанут работать: {string.Join("; ", related)}.";
-        return await _dialogs.ConfirmAsync(title, action);
+        var ordinal = _columns.Ordinal(SelectedTable, SelectedColumn.Name);
+        var count = _columns.ColumnCount(SelectedTable);
+        if (ordinal is { } index && index < count - 1)
+            await _columns.MoveAsync(SelectedTable, SelectedColumn.Name, index + 1);
     }
 
     [RelayCommand]
-    private void ChangeType()
+    private async Task ChangeTypeAsync()
     {
         if (SelectedTable is null || SelectedColumn is null || SelectedColumn.Type == TargetType.Value)
             return;
-        var name = SelectedColumn.Name;
-        if (TryAddStep(new ChangeTypeStep { Table = SelectedTable, Column = name, TargetType = TargetType.Value }))
-            SelectedColumn = Columns.FirstOrDefault(c => c.Name == name);
+        await _columns.ChangeTypeAsync(SelectedTable, SelectedColumn.Name, TargetType.Value);
     }
 
     [RelayCommand]

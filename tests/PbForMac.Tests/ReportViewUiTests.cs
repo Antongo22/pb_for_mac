@@ -87,6 +87,7 @@ public class ReportViewUiTests
         public Task<string?> SaveFileAsync(string t, string s, FileTypeFilter f) => Task.FromResult<string?>(null);
         public Task<IReadOnlyList<string>?> SelectItemsAsync(string t, string m, IReadOnlyList<string> i) => Task.FromResult<IReadOnlyList<string>?>(null);
         public Task<int> ChooseAsync(string t, string m, IReadOnlyList<string> o) => Task.FromResult(-1);
+        public Task<string?> PromptAsync(string t, string m, string i = "") => Task.FromResult<string?>(null);
         public Task ShowMessageAsync(string t, string m) => Task.CompletedTask;
         public bool ConfirmResult { get; init; } = true;
         public List<string> Confirmations { get; } = [];

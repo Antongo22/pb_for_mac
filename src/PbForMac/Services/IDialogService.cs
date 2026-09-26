@@ -18,6 +18,9 @@ public interface IDialogService
     /// <summary>Выбор одного из вариантов кнопками; -1 — отмена.</summary>
     Task<int> ChooseAsync(string title, string message, IReadOnlyList<string> options);
 
+    /// <summary>Ввод строки; null — пользователь отменил.</summary>
+    Task<string?> PromptAsync(string title, string message, string initial = "");
+
     Task ShowMessageAsync(string title, string message);
 
     Task<bool> ConfirmAsync(string title, string message);

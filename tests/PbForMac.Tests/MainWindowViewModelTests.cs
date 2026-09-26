@@ -456,6 +456,11 @@ public class MainWindowViewModelTests : IDisposable
             return Task.FromResult(Choice);
         }
 
+        public string? PromptResult { get; set; }
+
+        public Task<string?> PromptAsync(string title, string message, string initial = "") =>
+            Task.FromResult<string?>(PromptResult ?? initial);
+
         public Task ShowMessageAsync(string title, string message)
         {
             LastMessageTitle = title;
