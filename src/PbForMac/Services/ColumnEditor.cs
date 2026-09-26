@@ -170,6 +170,27 @@ public sealed class ColumnEditor(DataModel model, IDialogService dialogs)
         }
     }
 
+    public async Task<bool> UnpivotAsync(string table, IReadOnlyList<string> columns)
+    {
+        if (columns.Count == 0)
+            return false;
+        var label = columns.Count == 1
+            ? $"Развернуть столбец «{columns[0]}» в строки (Unpivot)?"
+            : $"Развернуть столбцы ({columns.Count}) в строки (Unpivot)?";
+        if (!await dialogs.ConfirmAsync("Unpivot", label + "\nОстальные столбцы станут ключами."))
+            return false;
+        try
+        {
+            model.AddStep(new UnpivotColumnsStep { Table = table, Columns = columns.ToList() });
+            return true;
+        }
+        catch (InvalidOperationException e)
+        {
+            await dialogs.ShowMessageAsync("Не удалось выполнить Unpivot", e.Message);
+            return false;
+        }
+    }
+
     public async Task<bool> RemoveRowsAsync(string table, IReadOnlyList<DataRow> rows)
     {
         if (rows.Count == 0)

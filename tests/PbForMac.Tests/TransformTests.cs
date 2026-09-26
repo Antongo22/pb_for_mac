@@ -338,6 +338,30 @@ public class TransformTests
     }
 
     [Fact]
+    public void UnpivotColumns_CreatesAttributeValueRows()
+    {
+        var table = new DataTable("T");
+        table.Columns.Add("Id", typeof(string));
+        table.Columns.Add("Янв", typeof(int));
+        table.Columns.Add("Фев", typeof(int));
+        table.Rows.Add("a", 10, 20);
+        table.Rows.Add("b", 1, 2);
+        var tables = new List<DataTable> { table };
+
+        TransformEngine.Apply(tables, new UnpivotColumnsStep
+        {
+            Table = "T",
+            Columns = ["Янв", "Фев"],
+        });
+
+        var result = tables[0];
+        Assert.Equal(["Id", "Атрибут", "Значение"], result.Columns.Cast<DataColumn>().Select(c => c.ColumnName).ToArray());
+        Assert.Equal(4, result.Rows.Count);
+        Assert.Contains(result.Rows.Cast<DataRow>(), r => Equals(r["Id"], "a") && Equals(r["Атрибут"], "Янв") && Equals(Convert.ToInt32(r["Значение"]), 10));
+        Assert.Contains(result.Rows.Cast<DataRow>(), r => Equals(r["Id"], "b") && Equals(r["Атрибут"], "Фев") && Equals(Convert.ToInt32(r["Значение"]), 2));
+    }
+
+    [Fact]
     public void SortRows_OrdersAscendingAndDescending()
     {
         var tables = Tables();

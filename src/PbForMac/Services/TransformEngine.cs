@@ -102,6 +102,10 @@ public static class TransformEngine
                 AppendTable(tables, s);
                 break;
 
+            case UnpivotColumnsStep s:
+                UnpivotColumns(table, s.Columns, s.AttributeColumn, s.ValueColumn);
+                break;
+
             case GroupByStep s:
                 if (string.IsNullOrWhiteSpace(s.NewTable))
                     throw new InvalidOperationException("Укажите имя новой таблицы.");
@@ -249,6 +253,56 @@ public static class TransformEngine
             }
             destination.Rows.Add(row);
         }
+    }
+
+    /// <summary>Unpivot: выбранные столбцы → строки с атрибутом и значением.</summary>
+    public static void UnpivotColumns(DataTable table, IReadOnlyList<string> columns,
+        string attributeColumn, string valueColumn)
+    {
+        if (columns.Count == 0)
+            throw new InvalidOperationException("Выберите хотя бы один столбец для Unpivot.");
+        foreach (var name in columns)
+            RequireColumn(table, name);
+        if (columns.Count >= table.Columns.Count)
+            throw new InvalidOperationException("Для Unpivot должен остаться хотя бы один ключевой столбец.");
+
+        var attrName = string.IsNullOrWhiteSpace(attributeColumn) ? "Атрибут" : attributeColumn.Trim();
+        var valueName = string.IsNullOrWhiteSpace(valueColumn) ? "Значение" : valueColumn.Trim();
+        if (string.Equals(attrName, valueName, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Имена столбцов атрибута и значения должны различаться.");
+
+        var unpivot = new HashSet<string>(columns, StringComparer.OrdinalIgnoreCase);
+        var keys = table.Columns.Cast<DataColumn>().Where(c => !unpivot.Contains(c.ColumnName)).ToList();
+        if (keys.Any(c => string.Equals(c.ColumnName, attrName, StringComparison.OrdinalIgnoreCase)
+                          || string.Equals(c.ColumnName, valueName, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"Столбцы «{attrName}» / «{valueName}» уже есть среди ключевых.");
+
+        var result = new DataTable(table.TableName);
+        foreach (var key in keys)
+            result.Columns.Add(key.ColumnName, key.DataType);
+        result.Columns.Add(attrName, typeof(string));
+        // Значения разных типов → object/string; Detect при желании позже.
+        result.Columns.Add(valueName, typeof(object));
+
+        foreach (DataRow source in table.Rows)
+        {
+            foreach (var name in columns)
+            {
+                var row = result.NewRow();
+                foreach (var key in keys)
+                    row[key.ColumnName] = source[key];
+                row[attrName] = name;
+                row[valueName] = source[name];
+                result.Rows.Add(row);
+            }
+        }
+
+        table.Rows.Clear();
+        table.Columns.Clear();
+        foreach (DataColumn column in result.Columns)
+            table.Columns.Add(column.ColumnName, column.DataType);
+        foreach (DataRow row in result.Rows)
+            table.ImportRow(row);
     }
 
     public static void ChangeType(DataTable table, string columnName, ColumnType type)

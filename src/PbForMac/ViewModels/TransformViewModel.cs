@@ -544,6 +544,21 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
     }
 
     [RelayCommand]
+    private async Task UnpivotCheckedColumnsAsync()
+    {
+        if (SelectedTable is null)
+            return;
+        var names = Columns.Where(c => c.IsChecked).Select(c => c.Name).ToList();
+        if (names.Count == 0)
+        {
+            Error = "Отметьте столбцы для Unpivot.";
+            return;
+        }
+        Error = null;
+        await _columns.UnpivotAsync(SelectedTable, names);
+    }
+
+    [RelayCommand]
     private void SelectAllColumns()
     {
         var all = Columns.All(c => c.IsChecked);

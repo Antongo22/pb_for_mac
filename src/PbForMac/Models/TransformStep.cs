@@ -26,6 +26,7 @@ namespace PbForMac.Models;
 [JsonDerivedType(typeof(SortRowsStep), "sortRows")]
 [JsonDerivedType(typeof(TextTransformStep), "textTransform")]
 [JsonDerivedType(typeof(AppendTableStep), "appendTable")]
+[JsonDerivedType(typeof(UnpivotColumnsStep), "unpivot")]
 [JsonDerivedType(typeof(GroupByStep), "groupBy")]
 public abstract class TransformStep
 {
@@ -239,6 +240,22 @@ public sealed class AppendTableStep : TransformStep
     public override string Description => string.IsNullOrWhiteSpace(NewTable)
         ? $"Добавлены строки из «{OtherTable}» в «{Table}»"
         : $"Объединение «{Table}» + «{OtherTable}» → «{NewTable}»";
+}
+
+/// <summary>
+/// Разворачивает выбранные столбцы в пары атрибут/значение (Unpivot),
+/// остальные столбцы остаются ключами строки.
+/// </summary>
+public sealed class UnpivotColumnsStep : TransformStep
+{
+    public List<string> Columns { get; set; } = [];
+    public string AttributeColumn { get; set; } = "Атрибут";
+    public string ValueColumn { get; set; } = "Значение";
+
+    public override string Description =>
+        Columns.Count == 0
+            ? "Unpivot"
+            : $"Unpivot ({Columns.Count}): {string.Join(", ", Columns.Select(c => $"«{c}»"))}";
 }
 
 public sealed class AggregationSpec

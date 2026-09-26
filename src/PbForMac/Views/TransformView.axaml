@@ -52,6 +52,10 @@
                   <TextBlock Text="Оставить только отмеченные" />
                 </StackPanel>
               </Button>
+              <Button HorizontalAlignment="Stretch" Command="{Binding UnpivotCheckedColumnsCommand}"
+                      ToolTip.Tip="Развернуть отмеченные столбцы в строки (атрибут / значение)">
+                <TextBlock Text="Unpivot отмеченных" />
+              </Button>
             </StackPanel>
             <StackPanel IsVisible="{Binding HasColumn}" Spacing="6">
               <TextBlock Classes="caption" Text="Выбранный столбец" />
