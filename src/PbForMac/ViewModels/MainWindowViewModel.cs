@@ -21,10 +21,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     ];
 
     private readonly IDialogService _dialogs;
+    private readonly IThemeService _theme;
+    private readonly AppSettings _settings;
 
-    public MainWindowViewModel(IDialogService dialogs)
+    public MainWindowViewModel(IDialogService dialogs, IThemeService theme, AppSettings settings)
     {
         _dialogs = dialogs;
+        _theme = theme;
+        _settings = settings;
+        _theme.Changed += (_, _) => OnPropertyChanged(nameof(IsDarkTheme));
         Report = new ReportViewModel(Model, ImportCommand, ImportFolderCommand, OpenSampleCommand);
         Data = new DataViewModel(Model, dialogs, ImportCommand, ImportFolderCommand);
         Transform = new TransformViewModel(Model);
@@ -52,11 +57,38 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(Title))]
     private string? _reportPath;
 
+    public bool IsDarkTheme => _theme.IsDark;
+    public bool IsSystemTheme => _theme.Theme == AppTheme.System;
+    public bool IsLightTheme => _theme.Theme == AppTheme.Light;
+    public bool IsDarkThemeSelected => _theme.Theme == AppTheme.Dark;
+
     public bool IsReportPage => CurrentPage == Report;
     public bool IsDataPage => CurrentPage == Data;
     public bool IsModelPage => CurrentPage == Transform;
 
     public string Title => $"{(ReportPath is null ? "Новый отчёт" : Path.GetFileNameWithoutExtension(ReportPath))} — PbForMac";
+
+    /// <summary>Быстрое переключение между светлой и тёмной темой.</summary>
+    [RelayCommand]
+    private void ToggleTheme() => SetTheme(_theme.IsDark ? AppTheme.Light : AppTheme.Dark);
+
+    [RelayCommand]
+    private void SetTheme(AppTheme theme)
+    {
+        _theme.Theme = theme;
+        _settings.Theme = theme;
+        _settings.Save();
+        OnPropertyChanged(nameof(IsDarkTheme));
+        OnPropertyChanged(nameof(IsSystemTheme));
+        OnPropertyChanged(nameof(IsLightTheme));
+        OnPropertyChanged(nameof(IsDarkThemeSelected));
+        Status = theme switch
+        {
+            AppTheme.Light => "Светлая тема",
+            AppTheme.Dark => "Тёмная тема",
+            _ => "Тема как в системе",
+        };
+    }
 
     [RelayCommand]
     private void ShowReport() => CurrentPage = Report;

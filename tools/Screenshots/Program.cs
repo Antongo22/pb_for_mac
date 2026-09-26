@@ -10,6 +10,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using PbForMac;
+using PbForMac.Services;
 using PbForMac.ViewModels;
 using PbForMac.Views;
 
@@ -34,7 +35,7 @@ AppBuilder.Configure<App>()
 Application.Current!.RequestedThemeVariant = theme;
 
 var window = new MainWindow { Width = 1440, Height = 900 };
-var viewModel = new MainWindowViewModel(new DialogService(window));
+var viewModel = new MainWindowViewModel(new DialogService(window), new ThemeService(Application.Current), new AppSettings());
 window.DataContext = viewModel;
 window.Show();
 

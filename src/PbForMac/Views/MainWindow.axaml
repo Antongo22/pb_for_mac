@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:PbForMac.ViewModels"
+        xmlns:services="using:PbForMac.Services"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="860"
@@ -37,6 +38,18 @@
           <NativeMenuItem Header="Отчёт" Command="{Binding ShowReportCommand}" Gesture="Meta+D1" />
           <NativeMenuItem Header="Данные" Command="{Binding ShowDataCommand}" Gesture="Meta+D2" />
           <NativeMenuItem Header="Модель" Command="{Binding ShowModelCommand}" Gesture="Meta+D3" />
+          <NativeMenuItemSeparator />
+          <NativeMenuItem Header="Переключить тему" Command="{Binding ToggleThemeCommand}" Gesture="Meta+Shift+T" />
+          <NativeMenuItem Header="Тема">
+            <NativeMenu>
+              <NativeMenuItem Header="Как в системе" ToggleType="Radio" IsChecked="{Binding IsSystemTheme}"
+                              Command="{Binding SetThemeCommand}" CommandParameter="{x:Static services:AppTheme.System}" />
+              <NativeMenuItem Header="Светлая" ToggleType="Radio" IsChecked="{Binding IsLightTheme}"
+                              Command="{Binding SetThemeCommand}" CommandParameter="{x:Static services:AppTheme.Light}" />
+              <NativeMenuItem Header="Тёмная" ToggleType="Radio" IsChecked="{Binding IsDarkThemeSelected}"
+                              Command="{Binding SetThemeCommand}" CommandParameter="{x:Static services:AppTheme.Dark}" />
+            </NativeMenu>
+          </NativeMenuItem>
         </NativeMenu>
       </NativeMenuItem>
     </NativeMenu>
@@ -104,7 +117,26 @@
           </Button>
         </StackPanel>
 
-        <TextBlock Grid.Column="3" VerticalAlignment="Center" Classes="hint" Text="{Binding Title}" />
+        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="12">
+          <TextBlock VerticalAlignment="Center" Classes="hint" Text="{Binding Title}" />
+          <SplitButton Command="{Binding ToggleThemeCommand}" Padding="8,4" Background="Transparent" BorderThickness="0"
+                       ToolTip.Tip="Переключить светлую / тёмную тему">
+            <Panel>
+              <PathIcon Width="16" Height="16" Data="{StaticResource IconMoon}" IsVisible="{Binding !IsDarkTheme}" />
+              <PathIcon Width="16" Height="16" Data="{StaticResource IconSun}" IsVisible="{Binding IsDarkTheme}" />
+            </Panel>
+            <SplitButton.Flyout>
+              <MenuFlyout Placement="BottomEdgeAlignedRight">
+                <MenuItem Header="Как в системе" ToggleType="Radio" GroupName="theme" IsChecked="{Binding IsSystemTheme, Mode=OneWay}"
+                          Command="{Binding SetThemeCommand}" CommandParameter="{x:Static services:AppTheme.System}" />
+                <MenuItem Header="Светлая" ToggleType="Radio" GroupName="theme" IsChecked="{Binding IsLightTheme, Mode=OneWay}"
+                          Command="{Binding SetThemeCommand}" CommandParameter="{x:Static services:AppTheme.Light}" />
+                <MenuItem Header="Тёмная" ToggleType="Radio" GroupName="theme" IsChecked="{Binding IsDarkThemeSelected, Mode=OneWay}"
+                          Command="{Binding SetThemeCommand}" CommandParameter="{x:Static services:AppTheme.Dark}" />
+              </MenuFlyout>
+            </SplitButton.Flyout>
+          </SplitButton>
+        </StackPanel>
       </Grid>
     </Border>
 

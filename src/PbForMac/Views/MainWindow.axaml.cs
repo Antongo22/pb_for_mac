@@ -28,6 +28,7 @@ public partial class MainWindow : Window
         Add(Key.S, vm.SaveReportAsCommand, KeyModifiers.Shift);
         Add(Key.I, vm.ImportCommand);
         Add(Key.I, vm.ImportFolderCommand, KeyModifiers.Shift);
+        Add(Key.T, vm.ToggleThemeCommand, KeyModifiers.Shift);
         Add(Key.R, vm.RefreshCommand);
         Add(Key.E, vm.ExportPngCommand);
         Add(Key.D1, vm.ShowReportCommand);

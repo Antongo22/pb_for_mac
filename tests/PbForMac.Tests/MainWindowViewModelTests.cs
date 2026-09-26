@@ -8,11 +8,12 @@ public class MainWindowViewModelTests : IDisposable
 {
     private readonly TempFiles _files = new();
     private readonly FakeDialogs _dialogs = new();
+    private readonly FakeTheme _theme = new();
 
     public void Dispose() => _files.Dispose();
 
     private MainWindowViewModel CreateViewModel() =>
-        new(_dialogs);
+        new(_dialogs, _theme, new AppSettings { FilePath = _files.PathOf("settings.json") });
 
     private string CreatePartsFolder()
     {
@@ -76,6 +77,33 @@ public class MainWindowViewModelTests : IDisposable
 
         Assert.Empty(vm.Model.Sources);
         Assert.Equal("Нет данных", _dialogs.LastMessageTitle);
+    }
+
+    [Fact]
+    public void Theme_ToggleSwitchesAndPersists()
+    {
+        var vm = CreateViewModel();
+        var changed = new List<string?>();
+        vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        vm.ToggleThemeCommand.Execute(null);
+
+        Assert.Equal(AppTheme.Dark, _theme.Theme);
+        Assert.True(vm.IsDarkThemeSelected);
+        Assert.Contains(nameof(MainWindowViewModel.IsDarkTheme), changed);
+        Assert.Equal(AppTheme.Dark, AppSettings.Load(_files.PathOf("settings.json")).Theme);
+
+        vm.ToggleThemeCommand.Execute(null);
+        vm.SetThemeCommand.Execute(AppTheme.System);
+        Assert.True(vm.IsSystemTheme);
+        Assert.Equal(AppTheme.System, AppSettings.Load(_files.PathOf("settings.json")).Theme);
+    }
+
+    private sealed class FakeTheme : IThemeService
+    {
+        public AppTheme Theme { get; set; } = AppTheme.System;
+        public bool IsDark => Theme == AppTheme.Dark;
+        public event EventHandler? Changed { add { } remove { } }
     }
 
     private sealed class FakeDialogs : IDialogService

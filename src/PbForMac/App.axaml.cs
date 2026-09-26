@@ -3,6 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
+using PbForMac.Services;
 using PbForMac.ViewModels;
 using PbForMac.Views;
 
@@ -22,8 +23,11 @@ public partial class App : Application
             // Avoid duplicate validations from both Avalonia and the CommunityToolkit.
             DisableAvaloniaDataAnnotationValidation();
 
+            var settings = AppSettings.Load();
+            var theme = new ThemeService(this) { Theme = settings.Theme };
+
             var window = new MainWindow();
-            var viewModel = new MainWindowViewModel(new DialogService(window));
+            var viewModel = new MainWindowViewModel(new DialogService(window), theme, settings);
             window.DataContext = viewModel;
             desktop.MainWindow = window;
 
