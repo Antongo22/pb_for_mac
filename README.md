@@ -18,6 +18,12 @@
 
 ![Дашборд демо-отчёта](docs/report.png)
 
+<details>
+<summary>Тот же дашборд в тёмной теме</summary>
+
+![Дашборд в тёмной теме](docs/report-dark.png)
+</details>
+
 ## Возможности
 
 - **Получение данных** из CSV/TSV, Excel (`.xlsx`), JSON, XML и SQLite. Файлы и папки можно выбрать через диалог или просто перетащить в окно.
@@ -73,6 +79,8 @@
   прежде чем закрыть текущий отчёт (новый отчёт, открытие другого) и удалить таблицу, папку, визуал или шаг группировки
   (вместе с ним удаляется созданная им таблица), чтобы не потерять работу случайно.
 
+### Скриншоты
+
 | Данные | Модель |
 |---|---|
 | ![Страница «Данные»](docs/data.png) | ![Страница «Модель»](docs/model.png) |
@@ -80,9 +88,17 @@
 ![Связи между таблицами](docs/relationships.png)
 
 <details>
-<summary>Тёмная тема</summary>
+<summary>Тёмная тема — те же экраны</summary>
 
-![Тёмная тема](docs/report-dark.png)
+| Данные | Модель |
+|---|---|
+| ![«Данные», тёмная тема](docs/data-dark.png) | ![«Модель», тёмная тема](docs/model-dark.png) |
+
+![Связи, тёмная тема](docs/relationships-dark.png)
+
+![Отчёт, тёмная тема](docs/report-dark.png)
+
+Тема переключается кнопкой ☀/🌙 в верхней панели и запоминается между запусками.
 </details>
 
 ## Установка
@@ -321,10 +337,13 @@ packaging/             установщики для Windows (install.cmd/.ps1) 
 ```bash
 dotnet test                                         # тесты
 dotnet run --project tools/SampleDataGenerator      # пересоздать samples/
-dotnet run --project tools/Screenshots              # обновить скриншоты в docs/
-dotnet run --project tools/Screenshots -- docs dark # скриншоты тёмной темы
+dotnet run --project tools/Screenshots              # светлая тема → docs/*.png
+dotnet run --project tools/Screenshots -- docs dark # тёмная тема → docs/*-dark.png
 dotnet run --project tools/Screenshots -- icon      # перерисовать иконку
 ```
+
+Скриншоты в `docs/` — светлая и тёмная тема для README (`report`, `data`, `model`, `relationships`).
+Их можно обновлять командами выше после заметных изменений UI.
 
 ## Стек
 

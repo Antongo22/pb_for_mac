@@ -487,3 +487,6 @@ $RECYCLE.BIN/
 # Publish output
 publish/
 artifacts/
+
+# Accidental empty/nested repos from Finder «Новая папка»
+/Без названия/
