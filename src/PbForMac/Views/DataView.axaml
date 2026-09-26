@@ -18,7 +18,14 @@
       </StackPanel>
     </StackPanel>
 
-    <Grid ColumnDefinitions="280,*,260" IsVisible="{Binding HasTables}">
+    <Grid IsVisible="{Binding HasTables}">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="280" MinWidth="180" MaxWidth="700" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="*" MinWidth="320" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="260" MinWidth="200" MaxWidth="600" />
+      </Grid.ColumnDefinitions>
 
       <!-- Список таблиц -->
       <Border Classes="pane" BorderThickness="0,0,1,0">
@@ -45,7 +52,8 @@
               </StackPanel>
             </Button>
           </StackPanel>
-          <TreeView ItemsSource="{Binding TableTree}" SelectedItem="{Binding SelectedNode}" Background="Transparent">
+          <TreeView ItemsSource="{Binding TableTree}" SelectedItem="{Binding SelectedNode}" Background="Transparent"
+                    ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <TreeView.Styles>
               <Style Selector="TreeViewItem" x:DataType="vm:TableTreeNode">
                 <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
@@ -71,7 +79,9 @@
       </Border>
 
       <!-- Таблица с поиском и фильтрами -->
-      <DockPanel Grid.Column="1" Margin="12">
+      <GridSplitter Grid.Column="1" Classes="paneSplitter" />
+
+      <DockPanel Grid.Column="2" Margin="12">
         <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
           <TextBox Text="{Binding SearchText}" Watermark="Поиск по всем столбцам…" />
           <TextBlock Grid.Column="1" Classes="hint" Text="{Binding RowInfo}" VerticalAlignment="Center" Margin="12,0" />
@@ -126,7 +136,9 @@
       </DockPanel>
 
       <!-- Профиль столбца -->
-      <Border Grid.Column="2" Classes="pane" BorderThickness="1,0,0,0">
+      <GridSplitter Grid.Column="3" Classes="paneSplitter" />
+
+      <Border Grid.Column="4" Classes="pane" BorderThickness="1,0,0,0">
         <StackPanel>
           <TextBlock Classes="paneHeader" Text="Профиль столбца" />
           <ComboBox ItemsSource="{Binding Columns}" SelectedItem="{Binding ProfileColumn}" />

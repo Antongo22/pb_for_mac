@@ -12,7 +12,14 @@
       <TextBlock Classes="hint" HorizontalAlignment="Center" Text="Загрузите данные, чтобы добавлять вычисляемые столбцы, группировки и фильтры." />
     </StackPanel>
 
-    <Grid ColumnDefinitions="270,*,300" IsVisible="{Binding HasTables}">
+    <Grid IsVisible="{Binding HasTables}">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="270" MinWidth="200" MaxWidth="600" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="*" MinWidth="360" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="300" MinWidth="220" MaxWidth="700" />
+      </Grid.ColumnDefinitions>
 
       <!-- Таблица и столбцы -->
       <Border Classes="pane" BorderThickness="0,0,1,0">
@@ -58,7 +65,9 @@
       </Border>
 
       <!-- Инструменты преобразования -->
-      <DockPanel Grid.Column="1" Margin="12">
+      <GridSplitter Grid.Column="1" Classes="paneSplitter" />
+
+      <DockPanel Grid.Column="2" Margin="12">
         <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,8">
           <Border Classes="error" IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}">
             <TextBlock Text="{Binding Error}" />
@@ -160,7 +169,9 @@
       </DockPanel>
 
       <!-- Применённые шаги -->
-      <Border Grid.Column="2" Classes="pane" BorderThickness="1,0,0,0">
+      <GridSplitter Grid.Column="3" Classes="paneSplitter" />
+
+      <Border Grid.Column="4" Classes="pane" BorderThickness="1,0,0,0">
         <DockPanel>
           <TextBlock DockPanel.Dock="Top" Classes="paneHeader" Text="Применённые шаги" />
           <TextBlock DockPanel.Dock="Top" Classes="hint" IsVisible="{Binding !HasSteps}"

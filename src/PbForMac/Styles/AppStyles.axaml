@@ -151,6 +151,20 @@
     <Setter Property="Opacity" Value="1" />
   </Style>
 
+  <!-- Разделители панелей: тонкая полоса, при наведении подсвечивается -->
+  <Style Selector="GridSplitter.paneSplitter">
+    <Setter Property="Width" Value="5" />
+    <Setter Property="MinWidth" Value="5" />
+    <Setter Property="ResizeDirection" Value="Columns" />
+    <Setter Property="ResizeBehavior" Value="PreviousAndNext" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Cursor" Value="SizeWestEast" />
+    <Setter Property="ToolTip.Tip" Value="Потяните, чтобы изменить ширину панели" />
+  </Style>
+  <Style Selector="GridSplitter.paneSplitter:pointerover">
+    <Setter Property="Background" Value="{StaticResource SelectionBrush}" />
+  </Style>
+
   <Style Selector="ComboBox, TextBox, NumericUpDown">
     <Setter Property="HorizontalAlignment" Value="Stretch" />
   </Style>

@@ -44,6 +44,53 @@ public class ReportViewUiTests
             .GetVisualDescendants().OfType<Button>().Single(b => ToolTip.GetTip(b) as string == tip);
 
     [AvaloniaFact]
+    public void DataPageSplitter_DragWidensTablesPanel()
+    {
+        var model = new DataModel();
+        var data = new DataViewModel(model, new NoDialogs(), new RelayCommand(() => { }), new RelayCommand(() => { }));
+        model.AddSource(new DataSourceDefinition { TableName = "Продажи" }, TestData.Sales());
+        var window = new Window { Width = 1400, Height = 900, Content = new DataView { DataContext = data } };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        var splitter = window.GetVisualDescendants().OfType<GridSplitter>().First();
+        var grid = (Grid)splitter.Parent!;
+        var before = grid.ColumnDefinitions[0].ActualWidth;
+        var start = splitter.TranslatePoint(new Point(splitter.Bounds.Width / 2, splitter.Bounds.Height / 2), window)!.Value;
+        window.MouseMove(start);
+        window.MouseDown(start, MouseButton.Left);
+        window.MouseMove(start + new Point(120, 0));
+        window.MouseUp(start + new Point(120, 0), MouseButton.Left);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.InRange(grid.ColumnDefinitions[0].ActualWidth, before + 100, before + 140);
+    }
+
+    [AvaloniaFact]
+    public void Toolbar_HasNoSampleButton()
+    {
+        var window = new MainWindow();
+        window.DataContext = new MainWindowViewModel(new NoDialogs(), new ThemeService(Application.Current!), new AppSettings());
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        var texts = window.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text).ToList();
+        Assert.Contains("Получить данные", texts);
+        Assert.DoesNotContain("Пример", texts);
+    }
+
+    private sealed class NoDialogs : IDialogService
+    {
+        public Task<IReadOnlyList<string>> OpenFilesAsync(string t, IReadOnlyList<FileTypeFilter> f, bool m) => Task.FromResult<IReadOnlyList<string>>([]);
+        public Task<string?> OpenFolderAsync(string t) => Task.FromResult<string?>(null);
+        public Task<string?> SaveFileAsync(string t, string s, FileTypeFilter f) => Task.FromResult<string?>(null);
+        public Task<IReadOnlyList<string>?> SelectItemsAsync(string t, string m, IReadOnlyList<string> i) => Task.FromResult<IReadOnlyList<string>?>(null);
+        public Task<int> ChooseAsync(string t, string m, IReadOnlyList<string> o) => Task.FromResult(-1);
+        public Task ShowMessageAsync(string t, string m) => Task.CompletedTask;
+        public Task<bool> ConfirmAsync(string t, string m) => Task.FromResult(true);
+    }
+
+    [AvaloniaFact]
     public void DeleteButtonOnTile_RemovesVisual()
     {
         var (window, report) = ShowReport(VisualKind.Card);
