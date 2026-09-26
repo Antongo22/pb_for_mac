@@ -9,6 +9,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using PbForMac;
 using PbForMac.Services;
 using PbForMac.ViewModels;
@@ -49,6 +50,10 @@ viewModel.ShowDataCommand.Execute(null);
 Capture("data");
 viewModel.ShowModelCommand.Execute(null);
 Capture("model");
+// Вкладка «Связи» на странице «Модель».
+var tabs = window.GetVisualDescendants().OfType<TabControl>().First();
+tabs.SelectedItem = tabs.Items.OfType<TabItem>().First(t => (string?)t.Header == "Связи");
+Capture("relationships");
 return;
 
 void Capture(string name)
