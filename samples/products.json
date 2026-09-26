@@ -1,0 +1,253 @@
+{
+  "catalog": {
+    "updated": "2025-06-30",
+    "currency": "RUB",
+    "products": [
+      {
+        "id": "P001",
+        "name": "Ноутбук Air 13",
+        "category": "Ноутбуки",
+        "price": 89990,
+        "rating": 4.6,
+        "reviews": 712,
+        "supplier": {
+          "name": "TechLine",
+          "country": "Китай"
+        },
+        "tags": [
+          "премиум",
+          "ноутбуки"
+        ]
+      },
+      {
+        "id": "P002",
+        "name": "Ноутбук Pro 16",
+        "category": "Ноутбуки",
+        "price": 184990,
+        "rating": 4.8,
+        "reviews": 722,
+        "supplier": {
+          "name": "TechLine",
+          "country": "Китай"
+        },
+        "tags": [
+          "премиум",
+          "ноутбуки"
+        ]
+      },
+      {
+        "id": "P003",
+        "name": "Ультрабук Slim",
+        "category": "Ноутбуки",
+        "price": 119990,
+        "rating": 4.4,
+        "reviews": 775,
+        "supplier": {
+          "name": "Nordic PC",
+          "country": "Тайвань"
+        },
+        "tags": [
+          "премиум",
+          "ноутбуки"
+        ]
+      },
+      {
+        "id": "P004",
+        "name": "Смартфон S23",
+        "category": "Смартфоны",
+        "price": 64990,
+        "rating": 4.7,
+        "reviews": 922,
+        "supplier": {
+          "name": "MobiTrade",
+          "country": "Корея"
+        },
+        "tags": [
+          "премиум",
+          "смартфоны"
+        ]
+      },
+      {
+        "id": "P005",
+        "name": "Смартфон Lite",
+        "category": "Смартфоны",
+        "price": 18990,
+        "rating": 4.1,
+        "reviews": 744,
+        "supplier": {
+          "name": "MobiTrade",
+          "country": "Китай"
+        },
+        "tags": [
+          "смартфоны"
+        ]
+      },
+      {
+        "id": "P006",
+        "name": "Смартфон Max",
+        "category": "Смартфоны",
+        "price": 109990,
+        "rating": 4.5,
+        "reviews": 545,
+        "supplier": {
+          "name": "MobiTrade",
+          "country": "Китай"
+        },
+        "tags": [
+          "премиум",
+          "смартфоны"
+        ]
+      },
+      {
+        "id": "P007",
+        "name": "Наушники Buds",
+        "category": "Аксессуары",
+        "price": 7990,
+        "rating": 4.2,
+        "reviews": 674,
+        "supplier": {
+          "name": "SoundPro",
+          "country": "Китай"
+        },
+        "tags": [
+          "аксессуары"
+        ]
+      },
+      {
+        "id": "P008",
+        "name": "Наушники Studio",
+        "category": "Аксессуары",
+        "price": 24990,
+        "rating": 4.7,
+        "reviews": 910,
+        "supplier": {
+          "name": "SoundPro",
+          "country": "Германия"
+        },
+        "tags": [
+          "аксессуары"
+        ]
+      },
+      {
+        "id": "P009",
+        "name": "Чехол кожаный",
+        "category": "Аксессуары",
+        "price": 1990,
+        "rating": 3.9,
+        "reviews": 548,
+        "supplier": {
+          "name": "CaseHouse",
+          "country": "Россия"
+        },
+        "tags": [
+          "аксессуары"
+        ]
+      },
+      {
+        "id": "P010",
+        "name": "Зарядка 65 Вт",
+        "category": "Аксессуары",
+        "price": 3490,
+        "rating": 4.3,
+        "reviews": 783,
+        "supplier": {
+          "name": "PowerOne",
+          "country": "Китай"
+        },
+        "tags": [
+          "аксессуары"
+        ]
+      },
+      {
+        "id": "P011",
+        "name": "Монитор 27\" 4K",
+        "category": "Мониторы",
+        "price": 42990,
+        "rating": 4.6,
+        "reviews": 857,
+        "supplier": {
+          "name": "ViewTech",
+          "country": "Корея"
+        },
+        "tags": [
+          "мониторы"
+        ]
+      },
+      {
+        "id": "P012",
+        "name": "Монитор 24\" FHD",
+        "category": "Мониторы",
+        "price": 14990,
+        "rating": 4.2,
+        "reviews": 899,
+        "supplier": {
+          "name": "ViewTech",
+          "country": "Китай"
+        },
+        "tags": [
+          "мониторы"
+        ]
+      },
+      {
+        "id": "P013",
+        "name": "Планшет Tab 11",
+        "category": "Планшеты",
+        "price": 39990,
+        "rating": 4.4,
+        "reviews": 641,
+        "supplier": {
+          "name": "MobiTrade",
+          "country": "Китай"
+        },
+        "tags": [
+          "планшеты"
+        ]
+      },
+      {
+        "id": "P014",
+        "name": "Планшет Mini",
+        "category": "Планшеты",
+        "price": 27990,
+        "rating": 4,
+        "reviews": 878,
+        "supplier": {
+          "name": "MobiTrade",
+          "country": "Китай"
+        },
+        "tags": [
+          "планшеты"
+        ]
+      },
+      {
+        "id": "P015",
+        "name": "Умные часы Fit",
+        "category": "Гаджеты",
+        "price": 15990,
+        "rating": 4.1,
+        "reviews": 611,
+        "supplier": {
+          "name": "WearIt",
+          "country": "Китай"
+        },
+        "tags": [
+          "гаджеты"
+        ]
+      },
+      {
+        "id": "P016",
+        "name": "Электронная книга",
+        "category": "Гаджеты",
+        "price": 12490,
+        "rating": 4.5,
+        "reviews": 871,
+        "supplier": {
+          "name": "ReadMore",
+          "country": "Россия"
+        },
+        "tags": [
+          "гаджеты"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<data>
+  <source>Справочник федеральных округов (демо)</source>
+  <regions>
+    <region code="CFD">
+      <name>Центр</name>
+      <capital>Москва</capital>
+      <population>40300000</population>
+      <area>650200</area>
+    </region>
+    <region code="NWFD">
+      <name>Северо-Запад</name>
+      <capital>Санкт-Петербург</capital>
+      <population>13900000</population>
+      <area>1687000</area>
+    </region>
+    <region code="SFD">
+      <name>Юг</name>
+      <capital>Ростов-на-Дону</capital>
+      <population>16600000</population>
+      <area>447800</area>
+    </region>
+    <region code="VFD">
+      <name>Приволжье</name>
+      <capital>Нижний Новгород</capital>
+      <population>28900000</population>
+      <area>1037000</area>
+    </region>
+    <region code="UFD">
+      <name>Урал</name>
+      <capital>Екатеринбург</capital>
+      <population>12300000</population>
+      <area>1818500</area>
+    </region>
+    <region code="SibFD">
+      <name>Сибирь</name>
+      <capital>Новосибирск</capital>
+      <population>16800000</population>
+      <area>4361800</area>
+    </region>
+    <region code="FEFD">
+      <name>Дальний Восток</name>
+      <capital>Владивосток</capital>
+      <population>7900000</population>
+      <area>6952600</area>
+    </region>
+  </regions>
+</data>

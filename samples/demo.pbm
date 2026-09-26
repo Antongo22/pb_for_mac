@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "sources": [
+    { "kind": "csv", "path": "sales.csv", "relativePath": "sales.csv", "tableName": "Продажи" },
+    { "kind": "json", "path": "products.json", "relativePath": "products.json", "tableName": "Товары" },
+    { "kind": "xml", "path": "regions.xml", "relativePath": "regions.xml", "tableName": "Регионы" },
+    { "kind": "excel", "path": "sales.xlsx", "relativePath": "sales.xlsx", "item": "Планы", "tableName": "Планы" },
+    { "kind": "sqlite", "path": "shop.db", "relativePath": "shop.db", "item": "orders", "tableName": "Заказы" }
+  ],
+  "steps": [
+    { "$step": "calculated", "table": "Продажи", "name": "Выручка", "expression": "[Количество] * [Цена] * (1 - [Скидка])" },
+    { "$step": "rename", "table": "Товары", "column": "name", "newName": "Товар" },
+    { "$step": "rename", "table": "Товары", "column": "price", "newName": "Цена" },
+    { "$step": "rename", "table": "Товары", "column": "rating", "newName": "Рейтинг" },
+    {
+      "$step": "groupBy", "table": "Продажи", "newTable": "Итоги по регионам",
+      "groupColumns": [ "Регион" ],
+      "aggregations": [
+        { "column": "Выручка", "aggregation": "sum", "outputName": "Выручка" },
+        { "column": "Количество", "aggregation": "sum", "outputName": "Продано, шт." },
+        { "column": "Менеджер", "aggregation": "distinctCount", "outputName": "Менеджеров" }
+      ]
+    }
+  ],
+  "visuals": [
+    { "kind": "card", "title": "Выручка", "table": "Продажи", "valueFields": [ "Выручка" ], "aggregation": "sum", "x": 20, "y": 20, "width": 240, "height": 130 },
+    { "kind": "card", "title": "Продано товаров", "table": "Продажи", "valueFields": [ "Количество" ], "aggregation": "sum", "x": 280, "y": 20, "width": 240, "height": 130 },
+    { "kind": "card", "title": "Средний чек", "table": "Продажи", "valueFields": [ "Выручка" ], "aggregation": "average", "x": 540, "y": 20, "width": 240, "height": 130 },
+    { "kind": "card", "title": "Заказов в интернет-магазине", "table": "Заказы", "valueFields": [ "id" ], "aggregation": "count", "x": 800, "y": 20, "width": 240, "height": 130 },
+    { "kind": "slicer", "title": "Регион", "table": "Продажи", "categoryField": "Регион", "x": 1060, "y": 20, "width": 200, "height": 450 },
+    { "kind": "line", "title": "Выручка по месяцам", "table": "Продажи", "categoryField": "Дата", "valueFields": [ "Выручка" ], "aggregation": "sum", "dateGranularity": "month", "x": 20, "y": 170, "width": 620, "height": 300 },
+    { "kind": "column", "title": "Выручка по регионам", "table": "Продажи", "categoryField": "Регион", "valueFields": [ "Выручка" ], "aggregation": "sum", "x": 660, "y": 170, "width": 380, "height": 300 },
+    { "kind": "pie", "title": "Доля категорий", "table": "Продажи", "categoryField": "Категория", "valueFields": [ "Выручка" ], "aggregation": "sum", "x": 20, "y": 490, "width": 400, "height": 300 },
+    { "kind": "bar", "title": "Топ-8 товаров", "table": "Продажи", "categoryField": "Товар", "valueFields": [ "Выручка" ], "aggregation": "sum", "topN": 8, "x": 440, "y": 490, "width": 420, "height": 300 },
+    { "kind": "table", "title": "Менеджеры", "table": "Продажи", "categoryField": "Менеджер", "valueFields": [ "Выручка", "Количество" ], "aggregation": "sum", "x": 880, "y": 490, "width": 380, "height": 300 },
+    { "kind": "scatter", "title": "Цена и рейтинг товаров", "table": "Товары", "categoryField": "Цена", "valueFields": [ "Рейтинг" ], "x": 20, "y": 810, "width": 620, "height": 300 },
+    { "kind": "column", "title": "План выручки по регионам", "table": "Планы", "categoryField": "Регион", "valueFields": [ "План выручки" ], "aggregation": "sum", "x": 660, "y": 810, "width": 600, "height": 300 }
+  ],
+  "filters": []
+}
