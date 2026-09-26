@@ -49,11 +49,6 @@ public partial class MainWindow : Window
             return;
         var paths = e.DataTransfer.TryGetFiles()?.Select(f => f.TryGetLocalPath()).OfType<string>().ToList() ?? [];
         foreach (var path in paths)
-        {
-            if (path.EndsWith(Services.ReportSerializer.Extension, StringComparison.OrdinalIgnoreCase))
-                await vm.OpenReportFileAsync(path);
-            else
-                await vm.ImportFileAsync(path);
-        }
+            await vm.OpenPathAsync(path);
     }
 }

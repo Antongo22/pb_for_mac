@@ -75,6 +75,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             await ImportFileAsync(path);
     }
 
+    /// <summary>Открывает отчёт .pbm или импортирует файл данных.</summary>
+    public Task OpenPathAsync(string path) =>
+        path.EndsWith(ReportSerializer.Extension, StringComparison.OrdinalIgnoreCase)
+            ? OpenReportFileAsync(path)
+            : ImportFileAsync(path);
+
     /// <summary>Импортирует файл (с выбором листов/таблиц) и возвращает имена новых таблиц.</summary>
     public async Task<IReadOnlyList<string>> ImportFileAsync(string path)
     {

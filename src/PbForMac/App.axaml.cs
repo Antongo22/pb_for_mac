@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
+using Avalonia.Platform.Storage;
 using PbForMac.ViewModels;
 using PbForMac.Views;
 
@@ -26,16 +27,39 @@ public partial class App : Application
             window.DataContext = viewModel;
             desktop.MainWindow = window;
 
-            // Отчёт или файл данных, переданный в командной строке.
-            var path = desktop.Args?.FirstOrDefault(File.Exists);
-            if (path is not null)
+            // Файлы открываются после показа окна: до этого нельзя показывать диалоги ошибок.
+            var opened = false;
+            var pending = new List<string>();
+            window.Opened += async (_, _) =>
             {
-                window.Opened += async (_, _) =>
+                opened = true;
+                foreach (var path in pending)
+                    await viewModel.OpenPathAsync(path);
+                pending.Clear();
+            };
+
+            void Open(string path)
+            {
+                if (opened)
+                    _ = viewModel.OpenPathAsync(path);
+                else
+                    pending.Add(path);
+            }
+
+            // Отчёт или файл данных из командной строки (Windows, Linux, `dotnet run -- file`).
+            foreach (var path in desktop.Args?.Where(File.Exists) ?? [])
+                Open(path);
+
+            // macOS передаёт файлы, открытые из Finder или «Открыть с помощью», через событие активации.
+            if (TryGetFeature(typeof(IActivatableLifetime)) is IActivatableLifetime activatable)
+            {
+                activatable.Activated += (_, e) =>
                 {
-                    if (path.EndsWith(Services.ReportSerializer.Extension, StringComparison.OrdinalIgnoreCase))
-                        await viewModel.OpenReportFileAsync(path);
-                    else
-                        await viewModel.ImportFileAsync(path);
+                    if (e is FileActivatedEventArgs files)
+                    {
+                        foreach (var path in files.Files.Select(f => f.TryGetLocalPath()).OfType<string>())
+                            Open(path);
+                    }
                 };
             }
         }
