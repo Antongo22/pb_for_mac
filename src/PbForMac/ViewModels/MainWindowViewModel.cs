@@ -78,11 +78,29 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public bool IsDataPage => CurrentPage == Data;
     public bool IsModelPage => CurrentPage == Transform;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsRibbonFile), nameof(IsRibbonData), nameof(IsRibbonView), nameof(IsRibbonReport))]
+    private string _ribbonTab = "Файл";
+
+    public bool IsRibbonFile => RibbonTab == "Файл";
+    public bool IsRibbonData => RibbonTab == "Данные";
+    public bool IsRibbonView => RibbonTab == "Вид";
+    public bool IsRibbonReport => RibbonTab == "Отчёт";
+
     public string Title => $"{(ReportPath is null ? "Новый отчёт" : Path.GetFileNameWithoutExtension(ReportPath))} — PbForMac";
 
     /// <summary>Быстрое переключение между светлой и тёмной темой.</summary>
     [RelayCommand]
     private void ToggleTheme() => SetTheme(_theme.IsDark ? AppTheme.Light : AppTheme.Dark);
+
+    [RelayCommand]
+    private void SelectRibbonTab(string tab) => RibbonTab = tab;
+
+    [RelayCommand]
+    private void ResetReportSlicers() => Report.ResetSlicersCommand.Execute(null);
+
+    [RelayCommand]
+    private Task AddReportBookmarkAsync() => Report.AddBookmarkCommand.ExecuteAsync(null);
 
     [RelayCommand]
     private void SetTheme(AppTheme theme)

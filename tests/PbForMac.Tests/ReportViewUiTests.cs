@@ -68,7 +68,7 @@ public class ReportViewUiTests
     }
 
     [AvaloniaFact]
-    public void Toolbar_HasNoSampleButton()
+    public void Toolbar_HasRibbonTabs_AndNoSampleButton()
     {
         var window = new MainWindow();
         window.DataContext = new MainWindowViewModel(new NoDialogs(), new ThemeService(Application.Current!), new AppSettings());
@@ -76,6 +76,10 @@ public class ReportViewUiTests
         Dispatcher.UIThread.RunJobs();
 
         var texts = window.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text).ToList();
+        Assert.Contains("Файл", texts);
+        Assert.Contains("Данные", texts);
+        Assert.Contains("Вид", texts);
+        Assert.Contains("Отчёт", texts);
         Assert.Contains("Получить данные", texts);
         Assert.DoesNotContain("Пример", texts);
     }

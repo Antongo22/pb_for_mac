@@ -58,19 +58,33 @@
 
   <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="56,*">
 
-    <!-- Панель инструментов -->
+    <!-- Лента инструментов -->
     <Border Grid.ColumnSpan="2" Background="{DynamicResource PanelBrush}"
-            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="0,6,12,6">
-      <Grid ColumnDefinitions="56,Auto,*,Auto">
-        <Viewbox Width="24" Height="24" HorizontalAlignment="Center">
-          <Canvas Width="24" Height="24">
-            <Rectangle Canvas.Left="3" Canvas.Top="10" Width="5" Height="11" RadiusX="1" RadiusY="1" Fill="{StaticResource BrandBrush}" />
-            <Rectangle Canvas.Left="9.5" Canvas.Top="6" Width="5" Height="15" RadiusX="1" RadiusY="1" Fill="#E8B200" />
-            <Rectangle Canvas.Left="16" Canvas.Top="2" Width="5" Height="19" RadiusX="1" RadiusY="1" Fill="#C79A00" />
-          </Canvas>
-        </Viewbox>
+            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+      <DockPanel>
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="56,*" Background="{DynamicResource WorkspaceBrush}">
+          <Viewbox Width="20" Height="20" HorizontalAlignment="Center" Margin="0,6">
+            <Canvas Width="24" Height="24">
+              <Rectangle Canvas.Left="3" Canvas.Top="10" Width="5" Height="11" RadiusX="1" RadiusY="1" Fill="{StaticResource BrandBrush}" />
+              <Rectangle Canvas.Left="9.5" Canvas.Top="6" Width="5" Height="15" RadiusX="1" RadiusY="1" Fill="#E8B200" />
+              <Rectangle Canvas.Left="16" Canvas.Top="2" Width="5" Height="19" RadiusX="1" RadiusY="1" Fill="#C79A00" />
+            </Canvas>
+          </Viewbox>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" Margin="0,4,12,0">
+            <Button Classes="ribbonTab" Classes.active="{Binding IsRibbonFile}" Content="Файл"
+                    Command="{Binding SelectRibbonTabCommand}" CommandParameter="Файл" />
+            <Button Classes="ribbonTab" Classes.active="{Binding IsRibbonData}" Content="Данные"
+                    Command="{Binding SelectRibbonTabCommand}" CommandParameter="Данные" />
+            <Button Classes="ribbonTab" Classes.active="{Binding IsRibbonView}" Content="Вид"
+                    Command="{Binding SelectRibbonTabCommand}" CommandParameter="Вид" />
+            <Button Classes="ribbonTab" Classes.active="{Binding IsRibbonReport}" Content="Отчёт"
+                    Command="{Binding SelectRibbonTabCommand}" CommandParameter="Отчёт" />
+            <TextBlock Classes="hint" Text="{Binding Title}" VerticalAlignment="Center" Margin="16,0,0,0" />
+          </StackPanel>
+        </Grid>
 
-        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+        <!-- Файл -->
+        <StackPanel Orientation="Horizontal" Spacing="4" Margin="12,6,12,8" IsVisible="{Binding IsRibbonFile}">
           <Button Classes="tool" Command="{Binding NewReportCommand}" ToolTip.Tip="Новый отчёт">
             <StackPanel><PathIcon Data="{StaticResource IconNew}" /><TextBlock Text="Новый" /></StackPanel>
           </Button>
@@ -88,9 +102,12 @@
               </MenuFlyout>
             </SplitButton.Flyout>
           </SplitButton>
-          <Rectangle Width="1" Height="22" Margin="8,0" Fill="{DynamicResource DividerBrush}" />
+        </StackPanel>
+
+        <!-- Данные -->
+        <StackPanel Orientation="Horizontal" Spacing="4" Margin="12,6,12,8" IsVisible="{Binding IsRibbonData}">
           <DropDownButton Padding="8,4" Background="Transparent" BorderThickness="0"
-                          ToolTip.Tip="Файлы CSV, Excel, JSON, XML, SQLite или целая папка с подпапками">
+                          ToolTip.Tip="Файлы CSV, Excel, JSON, XML, SQLite или целая папка">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <PathIcon Width="16" Height="16" Data="{StaticResource IconDatabase}" />
               <TextBlock Text="Получить данные" />
@@ -109,23 +126,29 @@
           <Button Classes="tool" Command="{Binding RefreshCommand}" ToolTip.Tip="Перечитать все источники">
             <StackPanel><PathIcon Data="{StaticResource IconRefresh}" /><TextBlock Text="Обновить" /></StackPanel>
           </Button>
-          <Rectangle Width="1" Height="22" Margin="8,0" Fill="{DynamicResource DividerBrush}" />
-          <Button Classes="tool" Command="{Binding ExportPngCommand}" ToolTip.Tip="Сохранить дашборд как изображение">
-            <StackPanel><PathIcon Data="{StaticResource IconImage}" /><TextBlock Text="Экспорт PNG" /></StackPanel>
-          </Button>
-          <Button Classes="tool" Command="{Binding ExportExcelCommand}" ToolTip.Tip="Экспорт таблицы или визуала в Excel">
-            <StackPanel><PathIcon Data="{StaticResource IconDownload}" /><TextBlock Text="Excel" /></StackPanel>
-          </Button>
         </StackPanel>
 
-        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="12">
-          <TextBlock VerticalAlignment="Center" Classes="hint" Text="{Binding Title}" />
+        <!-- Вид -->
+        <StackPanel Orientation="Horizontal" Spacing="4" Margin="12,6,12,8" IsVisible="{Binding IsRibbonView}">
+          <Button Classes="tool" Command="{Binding ShowReportCommand}" ToolTip.Tip="Страница отчёта">
+            <StackPanel><PathIcon Data="{StaticResource IconReport}" /><TextBlock Text="Отчёт" /></StackPanel>
+          </Button>
+          <Button Classes="tool" Command="{Binding ShowDataCommand}" ToolTip.Tip="Страница данных">
+            <StackPanel><PathIcon Data="{StaticResource IconData}" /><TextBlock Text="Данные" /></StackPanel>
+          </Button>
+          <Button Classes="tool" Command="{Binding ShowModelCommand}" ToolTip.Tip="Страница модели">
+            <StackPanel><PathIcon Data="{StaticResource IconModel}" /><TextBlock Text="Модель" /></StackPanel>
+          </Button>
+          <Rectangle Width="1" Height="22" Margin="8,0" Fill="{DynamicResource DividerBrush}" />
           <SplitButton Command="{Binding ToggleThemeCommand}" Padding="8,4" Background="Transparent" BorderThickness="0"
                        ToolTip.Tip="Переключить светлую / тёмную тему">
-            <Panel>
-              <PathIcon Width="16" Height="16" Data="{StaticResource IconMoon}" IsVisible="{Binding !IsDarkTheme}" />
-              <PathIcon Width="16" Height="16" Data="{StaticResource IconSun}" IsVisible="{Binding IsDarkTheme}" />
-            </Panel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Panel>
+                <PathIcon Width="16" Height="16" Data="{StaticResource IconMoon}" IsVisible="{Binding !IsDarkTheme}" />
+                <PathIcon Width="16" Height="16" Data="{StaticResource IconSun}" IsVisible="{Binding IsDarkTheme}" />
+              </Panel>
+              <TextBlock Text="Тема" />
+            </StackPanel>
             <SplitButton.Flyout>
               <MenuFlyout Placement="BottomEdgeAlignedRight">
                 <MenuItem Header="Как в системе" ToggleType="Radio" GroupName="theme" IsChecked="{Binding IsSystemTheme, Mode=OneWay}"
@@ -138,7 +161,24 @@
             </SplitButton.Flyout>
           </SplitButton>
         </StackPanel>
-      </Grid>
+
+        <!-- Отчёт -->
+        <StackPanel Orientation="Horizontal" Spacing="4" Margin="12,6,12,8" IsVisible="{Binding IsRibbonReport}">
+          <Button Classes="tool" Command="{Binding ExportPngCommand}" ToolTip.Tip="Сохранить дашборд как изображение">
+            <StackPanel><PathIcon Data="{StaticResource IconImage}" /><TextBlock Text="Экспорт PNG" /></StackPanel>
+          </Button>
+          <Button Classes="tool" Command="{Binding ExportExcelCommand}" ToolTip.Tip="Экспорт таблицы или визуала в Excel">
+            <StackPanel><PathIcon Data="{StaticResource IconDownload}" /><TextBlock Text="Excel" /></StackPanel>
+          </Button>
+          <Rectangle Width="1" Height="22" Margin="8,0" Fill="{DynamicResource DividerBrush}" />
+          <Button Classes="tool" Command="{Binding ResetReportSlicersCommand}" ToolTip.Tip="Сбросить все срезы">
+            <StackPanel><PathIcon Data="{StaticResource IconFilter}" /><TextBlock Text="Сбросить срезы" /></StackPanel>
+          </Button>
+          <Button Classes="tool" Command="{Binding AddReportBookmarkCommand}" ToolTip.Tip="Сохранить закладку">
+            <StackPanel><PathIcon Data="{StaticResource IconAdd}" /><TextBlock Text="Закладка" /></StackPanel>
+          </Button>
+        </StackPanel>
+      </DockPanel>
     </Border>
 
     <!-- Навигация -->
