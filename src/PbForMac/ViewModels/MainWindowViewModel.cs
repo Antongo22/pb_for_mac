@@ -441,6 +441,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             Report.Clear();
             var errors = Model.Load(report.Sources, report.Steps, report.Relationships, report.TableLayouts);
             Report.LoadPages(report.Pages);
+            Report.LoadBookmarks(report.Bookmarks);
             ReportPath = path;
             CurrentPage = Report;
             Status = $"Открыт отчёт: {Path.GetFileName(path)}";
@@ -488,6 +489,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 Relationships = Model.Relationships,
                 TableLayouts = Model.TableLayouts,
                 Pages = Report.GetPages(),
+                Bookmarks = Report.GetBookmarks(),
             }, path);
             ReportPath = path;
             Status = $"Сохранено: {path}";

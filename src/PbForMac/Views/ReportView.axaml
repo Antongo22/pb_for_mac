@@ -95,6 +95,13 @@
             </ItemsControl>
           </ScrollViewer>
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
+            <Button Classes="icon" Command="{Binding ResetSlicersCommand}" ToolTip.Tip="Сбросить все срезы">
+              <PathIcon Data="{StaticResource IconFilter}" Width="14" Height="14" />
+            </Button>
+            <Button Classes="icon" Command="{Binding AddBookmarkCommand}" ToolTip.Tip="Сохранить закладку (срезы и страница)">
+              <PathIcon Data="{StaticResource IconAdd}" Width="14" Height="14" />
+            </Button>
+            <Rectangle Width="1" Fill="{DynamicResource DividerBrush}" Margin="4,2" />
             <Button Classes="icon" Command="{Binding AddPageCommand}" ToolTip.Tip="Добавить страницу">
               <PathIcon Data="{StaticResource IconAdd}" Width="14" Height="14" />
             </Button>
@@ -295,6 +302,37 @@
               </DataTemplate>
             </ContentControl.ContentTemplate>
           </ContentControl>
+
+          <!-- Закладки -->
+          <Rectangle Height="1" Fill="{DynamicResource DividerBrush}" Margin="0,14,0,10" />
+          <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,6">
+            <TextBlock Classes="paneHeader" Text="Закладки" VerticalAlignment="Center" />
+            <Button Grid.Column="1" Classes="flat" Padding="6,2" Command="{Binding ResetSlicersCommand}"
+                    ToolTip.Tip="Сбросить все срезы" FontSize="11" Content="Сбросить срезы" />
+            <Button Grid.Column="2" Classes="flat" Padding="6,2" Command="{Binding AddBookmarkCommand}"
+                    ToolTip.Tip="Сохранить текущие срезы" FontSize="11" Content="+ Закладка" />
+          </Grid>
+          <TextBlock Classes="hint" IsVisible="{Binding !HasBookmarks}"
+                     Text="Закладка сохраняет выбранные срезы и активную страницу." />
+          <ItemsControl ItemsSource="{Binding Bookmarks}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ReportBookmarkItem">
+                <Border Classes="chip" HorizontalAlignment="Stretch" CornerRadius="4" Margin="0,0,0,4">
+                  <Grid ColumnDefinitions="*,Auto,Auto">
+                    <StackPanel>
+                      <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" />
+                      <TextBlock Text="{Binding Details}" FontSize="10" Foreground="{DynamicResource SubtleTextBrush}" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Classes="flat" Padding="6,2" FontSize="11" Content="Применить"
+                            Command="{Binding Apply}" />
+                    <Button Grid.Column="2" Classes="icon" Command="{Binding Remove}" ToolTip.Tip="Удалить закладку">
+                      <PathIcon Data="{StaticResource IconClose}" />
+                    </Button>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
 
           <!-- Фильтры страницы -->
           <Rectangle Height="1" Fill="{DynamicResource DividerBrush}" Margin="0,14,0,10" />

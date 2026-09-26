@@ -250,3 +250,16 @@ public sealed partial class ReportPageItem : ObservableObject
 
     public void Select() => _select(this);
 }
+
+/// <summary>Закладка в списке отчёта.</summary>
+public sealed class ReportBookmarkItem(ReportBookmark bookmark, Action<ReportBookmarkItem> apply, Action<ReportBookmarkItem> remove)
+{
+    public ReportBookmark Bookmark { get; } = bookmark;
+    public string Name => Bookmark.Name;
+    public string Details => Bookmark.PageName is { } page
+        ? $"{page} · срезов: {Bookmark.Slicers.Count}"
+        : $"срезов: {Bookmark.Slicers.Count}";
+
+    public void Apply() => apply(this);
+    public void Remove() => remove(this);
+}

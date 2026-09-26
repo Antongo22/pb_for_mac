@@ -23,9 +23,27 @@ public sealed class ReportDefinition
     /// <summary>Страницы отчёта (v2+).</summary>
     public List<ReportPage> Pages { get; set; } = [];
 
+    /// <summary>Закладки: снимок срезов и активной страницы.</summary>
+    public List<ReportBookmark> Bookmarks { get; set; } = [];
+
     /// <summary>Устаревшие плоские визуалы (v1); мигрируют в <see cref="Pages"/> при загрузке.</summary>
     public List<VisualDefinition> Visuals { get; set; } = [];
 
     /// <summary>Устаревшие плоские фильтры (v1).</summary>
     public List<FilterDefinition> Filters { get; set; } = [];
+}
+
+/// <summary>Закладка отчёта: выбранные значения срезов и страница.</summary>
+public sealed class ReportBookmark
+{
+    public string Name { get; set; } = "";
+    public string? PageName { get; set; }
+    public List<SlicerBookmarkState> Slicers { get; set; } = [];
+}
+
+/// <summary>Состояние одного среза в закладке.</summary>
+public sealed class SlicerBookmarkState
+{
+    public string VisualId { get; set; } = "";
+    public List<string> SelectedValues { get; set; } = [];
 }

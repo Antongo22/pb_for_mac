@@ -87,6 +87,7 @@ public sealed partial class ReportViewModel : ViewModelBase
     public ObservableCollection<FieldTableNode> FieldTables { get; } = [];
     public ObservableCollection<FilterItemViewModel> Filters { get; } = [];
     public ObservableCollection<ReportPageItem> Pages { get; } = [];
+    public ObservableCollection<ReportBookmarkItem> Bookmarks { get; } = [];
     public ObservableCollection<string> FilterColumns { get; } = [];
     public IReadOnlyList<Option<FilterOperator>> FilterOperators => Labels.FilterOperators;
 
@@ -98,6 +99,7 @@ public sealed partial class ReportViewModel : ViewModelBase
     public bool HasSelection => SelectedVisual is not null;
     public bool HasFilters => Filters.Count > 0;
     public bool CanDeletePage => Pages.Count > 1;
+    public bool HasBookmarks => Bookmarks.Count > 0;
     public bool FilterNeedsValue => Labels.OperatorNeedsValue(SelectedOperator.Value);
 
     [ObservableProperty]
@@ -505,6 +507,8 @@ public sealed partial class ReportViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasFilters));
         Pages.Clear();
         SelectedPage = null;
+        Bookmarks.Clear();
+        OnPropertyChanged(nameof(HasBookmarks));
         EnsureDefaultPage();
     }
 
@@ -628,6 +632,100 @@ public sealed partial class ReportViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanDeletePage));
         SelectedPage = null;
         SelectPage(Pages[Math.Clamp(index, 0, Pages.Count - 1)]);
+    }
+
+    [RelayCommand]
+    private void ResetSlicers()
+    {
+        foreach (var page in Pages)
+        {
+            foreach (var visual in page.Visuals.Where(v => v.Kind == VisualKind.Slicer))
+                visual.SelectedValues.Clear();
+        }
+        foreach (var slicer in Visuals.OfType<SlicerVisualViewModel>())
+            slicer.ClearSelection();
+        FlushSelectedPage();
+    }
+
+    [RelayCommand]
+    private async Task AddBookmarkAsync()
+    {
+        FlushSelectedPage();
+        var name = await _dialogs.PromptAsync("Закладка", "Название закладки",
+            $"Закладка {Bookmarks.Count + 1}");
+        if (string.IsNullOrWhiteSpace(name))
+            return;
+
+        var slicers = Pages.SelectMany(p => p.Visuals)
+            .Where(v => v.Kind == VisualKind.Slicer && v.SelectedValues.Count > 0)
+            .Select(v => new SlicerBookmarkState { VisualId = v.Id, SelectedValues = [..v.SelectedValues] })
+            .ToList();
+
+        var bookmark = new ReportBookmark
+        {
+            Name = name.Trim(),
+            PageName = SelectedPage?.Name,
+            Slicers = slicers,
+        };
+        Bookmarks.Add(new ReportBookmarkItem(bookmark, ApplyBookmark, RemoveBookmark));
+        OnPropertyChanged(nameof(HasBookmarks));
+    }
+
+    private void ApplyBookmark(ReportBookmarkItem item)
+    {
+        FlushSelectedPage();
+        var bookmark = item.Bookmark;
+        if (bookmark.PageName is { } pageName)
+        {
+            var page = Pages.FirstOrDefault(p => string.Equals(p.Name, pageName, StringComparison.OrdinalIgnoreCase));
+            if (page is not null && page != SelectedPage)
+                SelectPage(page);
+        }
+
+        var states = bookmark.Slicers.ToDictionary(s => s.VisualId, s => s.SelectedValues, StringComparer.OrdinalIgnoreCase);
+        foreach (var page in Pages)
+        {
+            foreach (var visual in page.Visuals.Where(v => v.Kind == VisualKind.Slicer))
+            {
+                visual.SelectedValues.Clear();
+                if (states.TryGetValue(visual.Id, out var values))
+                    visual.SelectedValues.AddRange(values);
+            }
+        }
+
+        // Перезагрузить текущую страницу, чтобы срезы подхватили SelectedValues.
+        if (SelectedPage is not null)
+        {
+            var current = SelectedPage;
+            SelectedPage = null;
+            SelectPage(current);
+        }
+    }
+
+    private void RemoveBookmark(ReportBookmarkItem item)
+    {
+        Bookmarks.Remove(item);
+        OnPropertyChanged(nameof(HasBookmarks));
+    }
+
+    public List<ReportBookmark> GetBookmarks() =>
+        Bookmarks.Select(b => new ReportBookmark
+        {
+            Name = b.Bookmark.Name,
+            PageName = b.Bookmark.PageName,
+            Slicers = b.Bookmark.Slicers.Select(s => new SlicerBookmarkState
+            {
+                VisualId = s.VisualId,
+                SelectedValues = [..s.SelectedValues],
+            }).ToList(),
+        }).ToList();
+
+    public void LoadBookmarks(IEnumerable<ReportBookmark> bookmarks)
+    {
+        Bookmarks.Clear();
+        foreach (var bookmark in bookmarks)
+            Bookmarks.Add(new ReportBookmarkItem(bookmark, ApplyBookmark, RemoveBookmark));
+        OnPropertyChanged(nameof(HasBookmarks));
     }
 
     private static VisualDefinition CloneVisual(VisualDefinition v) => new()

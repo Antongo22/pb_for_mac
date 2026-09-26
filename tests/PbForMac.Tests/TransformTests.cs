@@ -571,4 +571,45 @@ public class TransformTests
         Assert.Empty(restored.Visuals);
         Assert.Empty(restored.Filters);
     }
+
+    [Fact]
+    public void ReportSerializer_RoundTripsBookmarks()
+    {
+        var report = new ReportDefinition
+        {
+            Pages =
+            [
+                new ReportPage
+                {
+                    Name = "Обзор",
+                    Visuals =
+                    [
+                        new VisualDefinition
+                        {
+                            Id = "slicer1",
+                            Kind = VisualKind.Slicer,
+                            Table = "A",
+                            CategoryField = "x",
+                            SelectedValues = ["a", "b"],
+                        },
+                    ],
+                },
+            ],
+            Bookmarks =
+            [
+                new ReportBookmark
+                {
+                    Name = "Топ",
+                    PageName = "Обзор",
+                    Slicers = [new SlicerBookmarkState { VisualId = "slicer1", SelectedValues = ["a"] }],
+                },
+            ],
+        };
+
+        var restored = ReportSerializer.Deserialize(ReportSerializer.Serialize(report));
+        Assert.Single(restored.Bookmarks);
+        Assert.Equal("Топ", restored.Bookmarks[0].Name);
+        Assert.Equal("Обзор", restored.Bookmarks[0].PageName);
+        Assert.Equal(["a"], restored.Bookmarks[0].Slicers[0].SelectedValues);
+    }
 }
