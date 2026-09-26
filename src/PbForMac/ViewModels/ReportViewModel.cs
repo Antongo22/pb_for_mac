@@ -35,6 +35,7 @@ public sealed partial class ReportViewModel : ViewModelBase
         IRelayCommand openSampleCommand)
     {
         Model = model;
+        Query = new ModelQuery(model);
         _dialogs = dialogs;
         ImportCommand = importCommand;
         ImportFolderCommand = importFolderCommand;
@@ -70,6 +71,9 @@ public sealed partial class ReportViewModel : ViewModelBase
     }
 
     public DataModel Model { get; }
+
+    /// <summary>Запросы с учётом связей; пересоздаётся при каждом изменении модели.</summary>
+    public ModelQuery Query { get; private set; }
     public IRelayCommand ImportCommand { get; }
     public IRelayCommand ImportFolderCommand { get; }
     public IRelayCommand OpenSampleCommand { get; }
@@ -135,6 +139,7 @@ public sealed partial class ReportViewModel : ViewModelBase
 
     private void OnModelChanged()
     {
+        Query = new ModelQuery(Model);
         var names = Model.Tables.Select(t => t.TableName).ToList();
         if (!names.SequenceEqual(TableNames))
         {
@@ -163,17 +168,17 @@ public sealed partial class ReportViewModel : ViewModelBase
         FilterColumn = FilterColumns.Contains(selected ?? "") ? selected : FilterColumns.FirstOrDefault();
     }
 
-    /// <summary>Фильтры страницы и срезов, действующие на визуалы указанной таблицы.</summary>
-    public IEnumerable<FilterDefinition> ActiveFilters(string table, VisualViewModel? exclude)
+    /// <summary>
+    /// Фильтры страницы и срезов (кроме среза <paramref name="exclude"/>). Какие из них действуют на визуал,
+    /// решает <see cref="ModelQuery"/>: фильтры своей таблицы и связанных с ней справочников.
+    /// </summary>
+    public IEnumerable<FilterDefinition> ActiveFilters(VisualViewModel? exclude)
     {
         foreach (var filter in Filters)
-        {
-            if (string.Equals(filter.Definition.Table, table, StringComparison.OrdinalIgnoreCase))
-                yield return filter.Definition;
-        }
+            yield return filter.Definition;
         foreach (var slicer in Visuals.OfType<SlicerVisualViewModel>())
         {
-            if (slicer != exclude && slicer.ActiveFilter is { } f && string.Equals(f.Table, table, StringComparison.OrdinalIgnoreCase))
+            if (slicer != exclude && slicer.ActiveFilter is { } f)
                 yield return f;
         }
     }

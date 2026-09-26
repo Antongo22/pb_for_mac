@@ -32,7 +32,7 @@ public sealed partial class SlicerVisualViewModel : VisualViewModel
     public override bool ShowsValues => false;
     public override bool ShowsAggregation => false;
     public override bool ShowsTopN => false;
-    public override string AutoTitle => CategoryField ?? "Срез";
+    public override string AutoTitle => CategoryField is null ? "Срез" : FieldRef.Display(CategoryField);
 
     public bool HasSelection => Definition.SelectedValues.Count > 0;
 
@@ -53,19 +53,18 @@ public sealed partial class SlicerVisualViewModel : VisualViewModel
             Message = "Выберите таблицу";
             return;
         }
-        if (CategoryField is null || !table.Columns.Contains(CategoryField))
+        if (Field(table, CategoryField) is not { } field)
         {
             Message = "Выберите поле";
             return;
         }
 
-        var column = table.Columns[CategoryField]!;
         var values = GetRows(table)
-            .Select(r => r[column])
+            .Select(field.Get)
             .Where(v => !TypeInference.IsEmpty(v))
             .GroupBy(QueryEngine.Key)
             .Select(g => (Key: g.Key, Value: g.First()))
-            .OrderBy(v => v.Value, Comparer<object>.Create(QueryEngine.Compare))
+            .OrderBy(v => v.Value, Comparer<object?>.Create(QueryEngine.Compare))
             .Take(MaxItems);
 
         _updating = true;

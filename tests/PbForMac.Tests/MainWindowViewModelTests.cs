@@ -219,6 +219,74 @@ public class MainWindowViewModelTests : IDisposable
         Assert.Empty(vm.Model.Steps);
     }
 
+    /// <summary>Продажи и справочник товаров с общим ключом, как в типичной выгрузке.</summary>
+    private async Task<MainWindowViewModel> ImportSalesAndProducts()
+    {
+        var vm = CreateViewModel();
+        await vm.OpenPathAsync(_files.Write("sales.csv", "ID_PRODUCT,Qty\n1,5\n1,3\n2,7\n3,1\n"));
+        await vm.OpenPathAsync(_files.Write("products.csv", "ID_PRODUCT,Category\n1,Chocolate\n2,Candy\n3,Chocolate\n"));
+        return vm;
+    }
+
+    [Fact]
+    public async Task Import_DetectsRelationshipsAutomatically()
+    {
+        var vm = await ImportSalesAndProducts();
+
+        var relationship = Assert.Single(vm.Model.Relationships);
+        Assert.Equal("sales[ID_PRODUCT] → products[ID_PRODUCT]", relationship.ToString());
+        Assert.Contains("найдено связей: 1", vm.Status);
+    }
+
+    [Fact]
+    public async Task Relationships_AreSavedAndRestoredWithReport()
+    {
+        var vm = await ImportSalesAndProducts();
+        _dialogs.SavePath = _files.PathOf("model.pbm");
+        await vm.SaveReportAsCommand.ExecuteAsync(null);
+
+        var reopened = CreateViewModel();
+        await reopened.OpenReportFileAsync(_dialogs.SavePath);
+
+        Assert.Equal(["sales[ID_PRODUCT] → products[ID_PRODUCT]"], reopened.Model.Relationships.Select(r => r.ToString()));
+    }
+
+    [Fact]
+    public async Task Visuals_UseRelatedFields_AndSlicersFilterThroughRelationships()
+    {
+        var vm = await ImportSalesAndProducts();
+        var report = vm.Report;
+
+        // Таблица «Qty по категории товара» строится по продажам с полем справочника.
+        report.FilterTable = "sales";
+        report.VisualKinds.First(k => k.Kind == Models.VisualKind.Table).Add();
+        var table = Assert.IsType<ViewModels.Visuals.TableVisualViewModel>(report.SelectedVisual);
+        table.Table = "sales";
+        Assert.Contains("products[Category]", table.CategoryOptions);
+        table.CategoryField = "products[Category]";
+        table.ValueOptions.Single(o => o.Name == "Qty").IsChecked = true;
+        var rows = table.Slice!.Rows.Select(r => $"{r[0]}={r[1]}").ToList();
+        Assert.Equal(["Chocolate=9", "Candy=7"], rows);
+
+        // Срез по справочнику фильтрует карточку по продажам.
+        report.Select(null);
+        report.VisualKinds.First(k => k.Kind == Models.VisualKind.Card).Add();
+        var card = Assert.IsType<ViewModels.Visuals.CardVisualViewModel>(report.SelectedVisual);
+        card.Table = "sales";
+        card.ValueOptions.Single(o => o.Name == "Qty").IsChecked = true;
+        Assert.Equal("16", card.Value);
+
+        report.Select(null);
+        report.VisualKinds.First(k => k.Kind == Models.VisualKind.Slicer).Add();
+        var slicer = Assert.IsType<ViewModels.Visuals.SlicerVisualViewModel>(report.SelectedVisual);
+        slicer.Table = "products";
+        slicer.CategoryField = "Category";
+        slicer.Items.Single(i => i.Label == "Candy").IsSelected = true;
+
+        Assert.Equal("7", card.Value);
+        Assert.Equal(["Candy=7"], table.Slice!.Rows.Select(r => $"{r[0]}={r[1]}"));
+    }
+
     [Fact]
     public async Task OpeningReport_IntoEmptyWindow_DoesNotAsk()
     {
@@ -343,7 +411,9 @@ public class MainWindowViewModelTests : IDisposable
 
         public Task<string?> OpenFolderAsync(string title) => Task.FromResult<string?>(null);
 
-        public Task<string?> SaveFileAsync(string title, string suggestedName, FileTypeFilter filter) => Task.FromResult<string?>(null);
+        public string? SavePath { get; set; }
+
+        public Task<string?> SaveFileAsync(string title, string suggestedName, FileTypeFilter filter) => Task.FromResult(SavePath);
 
         public Task<IReadOnlyList<string>?> SelectItemsAsync(string title, string message, IReadOnlyList<string> items) =>
             Task.FromResult<IReadOnlyList<string>?>(items);

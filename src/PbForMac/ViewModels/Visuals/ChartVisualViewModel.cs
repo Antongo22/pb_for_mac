@@ -54,7 +54,7 @@ public sealed partial class ChartVisualViewModel : VisualViewModel
     public override bool ShowsTopN => Kind != VisualKind.Scatter;
 
     public override string AutoTitle => Kind == VisualKind.Scatter && CategoryField is not null && Definition.ValueFields.Count > 0
-        ? $"{Definition.ValueFields[0]} от {CategoryField}"
+        ? $"{FieldRef.Display(Definition.ValueFields[0])} от {FieldRef.Display(CategoryField)}"
         : base.AutoTitle;
 
     [ObservableProperty]
@@ -92,7 +92,9 @@ public sealed partial class ChartVisualViewModel : VisualViewModel
             return;
         }
 
-        var result = QueryEngine.AggregateBy(table, GetRows(table), CategoryField, Definition.ValueFields,
+        var category = RequireField(table, CategoryField);
+        var values = Definition.ValueFields.Select(f => Field(table, f)).OfType<ResolvedField>().ToList();
+        var result = QueryEngine.AggregateBy(GetRows(table), category, values,
             Aggregation.Value, Granularity.Value, Definition.TopN);
         if (result.Categories.Count == 0)
         {
@@ -213,8 +215,10 @@ public sealed partial class ChartVisualViewModel : VisualViewModel
             Message = $"Выберите поле «{ValuesCaption}»";
             return;
         }
+        var x = RequireField(table, CategoryField!);
+        var y = RequireField(table, yField);
         var points = GetRows(table)
-            .Select(r => (X: QueryEngine.ToDouble(r[CategoryField!]), Y: QueryEngine.ToDouble(r[yField])))
+            .Select(r => (X: QueryEngine.ToDouble(x.Get(r)), Y: QueryEngine.ToDouble(y.Get(r))))
             .Where(p => p.X.HasValue && p.Y.HasValue)
             .Take(MaxScatterPoints)
             .Select(p => new ObservablePoint(p.X, p.Y))
@@ -230,15 +234,15 @@ public sealed partial class ChartVisualViewModel : VisualViewModel
         [
             new ScatterSeries<ObservablePoint>
             {
-                Name = yField,
+                Name = y.Name,
                 Values = points,
                 Fill = new SolidColorPaint(color.WithAlpha(140)),
                 Stroke = null,
                 GeometrySize = 8,
             },
         ];
-        XAxes = [ValueAxis(CategoryField)];
-        YAxes = [ValueAxis(yField)];
+        XAxes = [ValueAxis(x.Name)];
+        YAxes = [ValueAxis(y.Name)];
         LegendPosition = LegendPosition.Hidden;
     }
 

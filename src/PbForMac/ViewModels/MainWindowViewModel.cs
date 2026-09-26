@@ -317,7 +317,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         if (names.Count > 0)
         {
-            Status = $"Загружено: {string.Join(", ", names)}";
+            // Как Power BI: связи с новыми таблицами ищутся сразу после загрузки.
+            var relationships = Model.DetectRelationships(names);
+            Status = $"Загружено: {string.Join(", ", names)}" +
+                     (relationships.Count > 0 ? $" · найдено связей: {relationships.Count} (страница «Модель» → «Связи»)" : "");
             Data.SelectTable(names[^1]);
             if (Report.IsEmpty)
                 CurrentPage = Data;
@@ -375,7 +378,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             Status = $"Открытие {Path.GetFileName(path)}…";
             var report = ReportSerializer.Load(path);
             Report.Clear();
-            var errors = Model.Load(report.Sources, report.Steps);
+            var errors = Model.Load(report.Sources, report.Steps, report.Relationships);
             Report.Load(report.Visuals, report.Filters);
             ReportPath = path;
             CurrentPage = Report;
@@ -421,6 +424,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             {
                 Sources = Model.Sources,
                 Steps = Model.Steps,
+                Relationships = Model.Relationships,
                 Visuals = Report.GetVisualDefinitions(),
                 Filters = Report.GetFilterDefinitions(),
             }, path);

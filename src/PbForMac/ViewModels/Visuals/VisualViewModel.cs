@@ -95,8 +95,8 @@ public abstract partial class VisualViewModel : ViewModelBase
         {
             var values = Definition.ValueFields.Count == 0
                 ? "Количество строк"
-                : $"{Aggregation.Label}: {string.Join(", ", Definition.ValueFields)}";
-            return CategoryField is null ? values : $"{values} по {CategoryField}";
+                : $"{Aggregation.Label}: {string.Join(", ", Definition.ValueFields.Select(FieldRef.Display))}";
+            return CategoryField is null ? values : $"{values} по {FieldRef.Display(CategoryField)}";
         }
     }
 
@@ -109,8 +109,8 @@ public abstract partial class VisualViewModel : ViewModelBase
     public virtual bool ShowsTopN => true;
 
     public bool ShowsGranularity =>
-        ShowsCategory && Kind != VisualKind.Scatter && Owner.Model.GetTable(Table)?.Columns[CategoryField ?? ""] is { } c
-        && c.DataType == typeof(DateTime);
+        ShowsCategory && Kind != VisualKind.Scatter && GetTable() is { } table
+        && Field(table, CategoryField)?.DataType == typeof(DateTime);
 
     /// <summary>Пересчитывает данные визуала с учётом фильтров отчёта.</summary>
     public void Refresh()
@@ -132,9 +132,18 @@ public abstract partial class VisualViewModel : ViewModelBase
     /// <summary>Таблица визуала или null, если она не выбрана/удалена.</summary>
     protected DataTable? GetTable() => Owner.Model.GetTable(Table);
 
-    /// <summary>Строки таблицы после фильтров страницы и срезов.</summary>
+    /// <summary>Строки таблицы после фильтров страницы и срезов (в том числе фильтров связанных справочников).</summary>
     protected IEnumerable<DataRow> GetRows(DataTable table) =>
-        QueryEngine.Filter(table, Owner.ActiveFilters(table.TableName, this));
+        Owner.Query.Filter(table, Owner.ActiveFilters(this));
+
+    /// <summary>Поле визуала: столбец таблицы или «Таблица[Столбец]» связанного справочника.</summary>
+    protected ResolvedField? Field(DataTable table, string? reference) =>
+        reference is null ? null : Owner.Query.Resolve(table, reference);
+
+    /// <summary>Поле, которое обязано существовать; иначе визуал покажет понятное сообщение.</summary>
+    protected ResolvedField RequireField(DataTable table, string reference) =>
+        Field(table, reference) ?? throw new InvalidOperationException(
+            $"Поле «{reference}» недоступно: нет такого столбца или связи с таблицей «{table.TableName}».");
 
     /// <summary>Вызывается при изменении модели данных: обновляет списки полей и данные.</summary>
     public void OnModelChanged()
@@ -151,22 +160,25 @@ public abstract partial class VisualViewModel : ViewModelBase
 
     private void UpdateFieldOptions()
     {
-        var table = Owner.Model.GetTable(Table);
-        var columns = table?.Columns.Cast<DataColumn>().ToList() ?? [];
+        var table = GetTable();
+        // Столбцы самой таблицы, затем столбцы связанных справочников («Таблица[Столбец]»).
+        var fields = table is null
+            ? []
+            : Owner.Query.AvailableFields(table).Select(f => Field(table, f)).OfType<ResolvedField>().ToList();
 
         CategoryOptions.Clear();
-        foreach (var column in columns)
-            CategoryOptions.Add(column.ColumnName);
+        foreach (var field in fields)
+            CategoryOptions.Add(field.Ref);
 
-        // Числовые столбцы идут первыми — их чаще выбирают как значения.
+        // Числовые поля идут первыми — их чаще выбирают как значения.
         ValueOptions.Clear();
-        foreach (var column in columns.OrderBy(c => TypeInference.IsNumeric(c) ? 0 : 1))
-            ValueOptions.Add(new CheckItem(column.ColumnName, Definition.ValueFields.Contains(column.ColumnName), OnValueFieldsChanged));
+        foreach (var field in fields.OrderBy(f => TypeInference.IsNumeric(TypeInference.FromClr(f.DataType)) ? 0 : 1))
+            ValueOptions.Add(new CheckItem(field.Ref, Definition.ValueFields.Contains(field.Ref), OnValueFieldsChanged));
 
         if (table is not null)
         {
-            Definition.ValueFields.RemoveAll(f => !table.Columns.Contains(f));
-            if (CategoryField is not null && !table.Columns.Contains(CategoryField))
+            Definition.ValueFields.RemoveAll(f => Field(table, f) is null);
+            if (CategoryField is not null && Field(table, CategoryField) is null)
                 CategoryField = null;
         }
     }

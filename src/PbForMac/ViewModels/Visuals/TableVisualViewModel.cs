@@ -40,21 +40,24 @@ public sealed partial class TableVisualViewModel : VisualViewModel
         DataTable result;
         if (CategoryField is null)
         {
-            var fields = Definition.ValueFields.Count > 0
-                ? Definition.ValueFields.ToArray()
-                : table.Columns.Cast<DataColumn>().Select(c => c.ColumnName).ToArray();
+            var fields = (Definition.ValueFields.Count > 0
+                    ? Definition.ValueFields.Select(f => Field(table, f)).OfType<ResolvedField>()
+                    : table.Columns.Cast<DataColumn>().Select(ResolvedField.FromColumn))
+                .ToArray();
             result = new DataTable(table.TableName);
             foreach (var field in fields)
-                result.Columns.Add(field, table.Columns[field]!.DataType);
+                result.Columns.Add(QueryEngine.Unique(result, field.Name), field.DataType);
             foreach (var row in rows.Take(MaxRows))
-                result.Rows.Add(fields.Select(f => row[f]).ToArray());
+                result.Rows.Add(fields.Select(f => f.Get(row) ?? DBNull.Value).ToArray());
         }
         else
         {
-            var aggregated = QueryEngine.AggregateBy(table, rows, CategoryField, Definition.ValueFields,
+            var category = RequireField(table, CategoryField);
+            var valueFields = Definition.ValueFields.Select(f => Field(table, f)).OfType<ResolvedField>().ToList();
+            var aggregated = QueryEngine.AggregateBy(rows, category, valueFields,
                 Aggregation.Value, Granularity.Value, Definition.TopN);
             result = new DataTable(table.TableName);
-            result.Columns.Add(CategoryField, typeof(string));
+            result.Columns.Add(category.Name, typeof(string));
             foreach (var name in aggregated.SeriesNames)
                 result.Columns.Add(QueryEngine.Unique(result, name), typeof(double));
             for (var i = 0; i < aggregated.Categories.Count; i++)
