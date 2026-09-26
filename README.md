@@ -96,9 +96,13 @@
 
 ![Связи, тёмная тема](docs/relationships-dark.png)
 
-![Отчёт, тёмная тема](docs/report-dark.png)
-
 Тема переключается кнопкой ☀/🌙 в верхней панели и запоминается между запусками.
+Обновить все PNG после изменений UI:
+
+```bash
+dotnet run --project tools/Screenshots              # светлая
+dotnet run --project tools/Screenshots -- docs dark # тёмная
+```
 </details>
 
 ## Установка
