@@ -5,19 +5,24 @@ using PbForMac.Services.Importers;
 namespace PbForMac.Services;
 
 /// <summary>
-/// Модель данных отчёта: загруженные источники («сырые» таблицы) и шаги преобразований.
+/// Модель данных отчёта: загруженные источники («сырые» таблицы), шаги преобразований и связи.
 /// Итоговые таблицы получаются применением шагов к копиям исходных таблиц.
 /// </summary>
 public sealed class DataModel
 {
     private readonly Dictionary<string, DataTable> _raw = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<TransformStep, string> _stepErrors = [];
+    private readonly Dictionary<RelationshipDefinition, string> _relationshipIssues = [];
     private List<DataTable> _tables = [];
 
     public List<DataSourceDefinition> Sources { get; } = [];
     public List<TransformStep> Steps { get; } = [];
+    public List<RelationshipDefinition> Relationships { get; } = [];
     public IReadOnlyList<DataTable> Tables => _tables;
     public IReadOnlyDictionary<TransformStep, string> StepErrors => _stepErrors;
+
+    /// <summary>Проблемы связей: нет таблицы/столбца (связь не работает) или неуникальные ключи (берётся первая строка).</summary>
+    public IReadOnlyDictionary<RelationshipDefinition, string> RelationshipIssues => _relationshipIssues;
 
     /// <summary>Модель изменилась (таблицы пересобраны).</summary>
     public event EventHandler? Changed;
@@ -63,7 +68,84 @@ public sealed class DataModel
         TransformEngine.Apply(copy, step); // бросает исключение с понятным текстом
         Steps.Add(step);
         _tables = copy;
+        ValidateRelationships();
         Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Добавляет связь «многие к одному», проверив таблицы и столбцы.</summary>
+    public void AddRelationship(RelationshipDefinition relationship)
+    {
+        var from = GetTable(relationship.FromTable)
+                   ?? throw new InvalidOperationException($"Таблица «{relationship.FromTable}» не найдена.");
+        var to = GetTable(relationship.ToTable)
+                 ?? throw new InvalidOperationException($"Таблица «{relationship.ToTable}» не найдена.");
+        if (from == to)
+            throw new InvalidOperationException("Связь должна соединять две разные таблицы.");
+        if (!from.Columns.Contains(relationship.FromColumn))
+            throw new InvalidOperationException($"Столбец «{relationship.FromColumn}» не найден в таблице «{from.TableName}».");
+        if (!to.Columns.Contains(relationship.ToColumn))
+            throw new InvalidOperationException($"Столбец «{relationship.ToColumn}» не найден в таблице «{to.TableName}».");
+        if (Relationships.Any(r => r.SameAs(relationship)))
+            throw new InvalidOperationException("Такая связь уже есть.");
+        if (Relationships.Any(r => r.Connects(from.TableName) && r.Connects(to.TableName)))
+            throw new InvalidOperationException($"Таблицы «{from.TableName}» и «{to.TableName}» уже связаны.");
+
+        relationship.FromTable = from.TableName;
+        relationship.ToTable = to.TableName;
+        Relationships.Add(relationship);
+        ValidateRelationships();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void RemoveRelationship(RelationshipDefinition relationship)
+    {
+        if (!Relationships.Remove(relationship))
+            return;
+        ValidateRelationships();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Ищет связи автоматически (одноимённые ключевые столбцы) и добавляет их.
+    /// <paramref name="onlyTables"/> — искать только связи с этими таблицами (например, только что загруженными).
+    /// </summary>
+    public IReadOnlyList<RelationshipDefinition> DetectRelationships(IEnumerable<string>? onlyTables = null)
+    {
+        var found = RelationshipDetector.Detect(_tables, Relationships, onlyTables);
+        if (found.Count == 0)
+            return found;
+        Relationships.AddRange(found);
+        ValidateRelationships();
+        Changed?.Invoke(this, EventArgs.Empty);
+        return found;
+    }
+
+    private void ValidateRelationships()
+    {
+        _relationshipIssues.Clear();
+        foreach (var relationship in Relationships)
+        {
+            var from = GetTable(relationship.FromTable);
+            var to = GetTable(relationship.ToTable);
+            if (from is null || to is null)
+                _relationshipIssues[relationship] = $"Таблица «{(from is null ? relationship.FromTable : relationship.ToTable)}» не найдена — связь не работает.";
+            else if (!from.Columns.Contains(relationship.FromColumn))
+                _relationshipIssues[relationship] = $"Столбец «{relationship.FromColumn}» не найден в «{from.TableName}» — связь не работает.";
+            else if (!to.Columns.Contains(relationship.ToColumn))
+                _relationshipIssues[relationship] = $"Столбец «{relationship.ToColumn}» не найден в «{to.TableName}» — связь не работает.";
+            else if (RelationshipDetector.HasDuplicateKeys(to, relationship.ToColumn))
+                _relationshipIssues[relationship] = $"Значения «{relationship.ToColumn}» в «{to.TableName}» повторяются — используется первая строка с ключом.";
+        }
+    }
+
+    /// <summary>Доля различных ключей таблицы «многие», найденных в таблице «один» (0…1), или null, если связь не работает.</summary>
+    public double? MatchRate(RelationshipDefinition relationship)
+    {
+        var from = GetTable(relationship.FromTable);
+        var to = GetTable(relationship.ToTable);
+        if (from?.Columns[relationship.FromColumn] is not { } fromColumn || to?.Columns[relationship.ToColumn] is not { } toColumn)
+            return null;
+        return RelationshipDetector.MatchRate(from, fromColumn, to, toColumn);
     }
 
     public void RemoveStep(TransformStep step)
@@ -80,6 +162,7 @@ public sealed class DataModel
     {
         var removed = new HashSet<string>(names, StringComparer.OrdinalIgnoreCase);
         Sources.RemoveAll(s => removed.Contains(s.TableName));
+        Relationships.RemoveAll(r => removed.Any(r.Connects));
         foreach (var name in removed)
             _raw.Remove(name);
 
@@ -120,13 +203,16 @@ public sealed class DataModel
     }
 
     /// <summary>Заменяет содержимое модели (используется при открытии отчёта).</summary>
-    public IReadOnlyList<string> Load(IEnumerable<DataSourceDefinition> sources, IEnumerable<TransformStep> steps)
+    public IReadOnlyList<string> Load(IEnumerable<DataSourceDefinition> sources, IEnumerable<TransformStep> steps,
+        IEnumerable<RelationshipDefinition>? relationships = null)
     {
         Sources.Clear();
         Steps.Clear();
+        Relationships.Clear();
         _raw.Clear();
         Sources.AddRange(sources);
         Steps.AddRange(steps);
+        Relationships.AddRange(relationships ?? []);
         return Reload();
     }
 
@@ -134,6 +220,7 @@ public sealed class DataModel
     {
         Sources.Clear();
         Steps.Clear();
+        Relationships.Clear();
         _raw.Clear();
         Rebuild();
     }
@@ -160,6 +247,7 @@ public sealed class DataModel
         }
 
         _tables = tables;
+        ValidateRelationships();
         Changed?.Invoke(this, EventArgs.Empty);
     }
 }

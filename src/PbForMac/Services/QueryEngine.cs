@@ -10,6 +10,19 @@ public sealed record AggregatedResult(IReadOnlyList<string> Categories, IReadOnl
     public static AggregatedResult Empty { get; } = new([], [], []);
 }
 
+/// <summary>
+/// Поле, из которого можно получить значение для строки основной таблицы:
+/// её собственный столбец или столбец связанной таблицы (через связи).
+/// </summary>
+public sealed record ResolvedField(string Ref, string Name, Type DataType, Func<DataRow, object?> Get)
+{
+    public static ResolvedField FromColumn(DataColumn column)
+    {
+        var ordinal = column.Ordinal;
+        return new ResolvedField(column.ColumnName, column.ColumnName, column.DataType, r => r[ordinal]);
+    }
+}
+
 /// <summary>Фильтрация, группировка и агрегация данных таблиц.</summary>
 public static class QueryEngine
 {
@@ -29,25 +42,36 @@ public static class QueryEngine
     {
         var column = table.Columns[filter.Column]
                      ?? throw new InvalidOperationException($"Столбец «{filter.Column}» не найден в таблице «{table.TableName}».");
-        var index = column.Ordinal;
-        var type = TypeInference.FromClr(column.DataType);
+        return BuildPredicate(ResolvedField.FromColumn(column), filter);
+    }
 
+    public static Func<DataRow, bool> BuildPredicate(ResolvedField field, FilterDefinition filter)
+    {
+        var test = BuildValuePredicate(field.DataType, filter);
+        var get = field.Get;
+        return r => test(get(r));
+    }
+
+    /// <summary>Условие фильтра для значения поля указанного типа.</summary>
+    public static Func<object?, bool> BuildValuePredicate(Type dataType, FilterDefinition filter)
+    {
+        var type = TypeInference.FromClr(dataType);
         switch (filter.Operator)
         {
             case FilterOperator.IsEmpty:
-                return r => TypeInference.IsEmpty(r[index]);
+                return v => TypeInference.IsEmpty(v);
             case FilterOperator.IsNotEmpty:
-                return r => !TypeInference.IsEmpty(r[index]);
+                return v => !TypeInference.IsEmpty(v);
             case FilterOperator.In:
                 var set = filter.Values.ToHashSet(StringComparer.OrdinalIgnoreCase);
-                return r => set.Contains(Key(r[index]));
+                return v => set.Contains(Key(v));
             case FilterOperator.Contains or FilterOperator.NotContains or FilterOperator.StartsWith:
                 var text = filter.Value ?? "";
                 return filter.Operator switch
                 {
-                    FilterOperator.Contains => r => Text(r[index]).Contains(text, StringComparison.OrdinalIgnoreCase),
-                    FilterOperator.NotContains => r => !Text(r[index]).Contains(text, StringComparison.OrdinalIgnoreCase),
-                    _ => r => Text(r[index]).StartsWith(text, StringComparison.OrdinalIgnoreCase),
+                    FilterOperator.Contains => v => Text(v).Contains(text, StringComparison.OrdinalIgnoreCase),
+                    FilterOperator.NotContains => v => !Text(v).Contains(text, StringComparison.OrdinalIgnoreCase),
+                    _ => v => Text(v).StartsWith(text, StringComparison.OrdinalIgnoreCase),
                 };
         }
 
@@ -56,18 +80,18 @@ public static class QueryEngine
         {
             if (type != ColumnType.Text && !TypeInference.IsEmpty(filter.Value))
                 throw new InvalidOperationException(
-                    $"Значение «{filter.Value}» не подходит для столбца «{filter.Column}» ({Labels.Of(type)}).");
+                    $"Значение «{filter.Value}» не подходит для столбца «{FieldRef.Display(filter.Column)}» ({Labels.Of(type)}).");
             target = "";
         }
 
         return filter.Operator switch
         {
-            FilterOperator.Equals => r => Compare(r[index], target) == 0,
-            FilterOperator.NotEquals => r => Compare(r[index], target) != 0,
-            FilterOperator.GreaterThan => r => !TypeInference.IsEmpty(r[index]) && Compare(r[index], target) > 0,
-            FilterOperator.GreaterOrEqual => r => !TypeInference.IsEmpty(r[index]) && Compare(r[index], target) >= 0,
-            FilterOperator.LessThan => r => !TypeInference.IsEmpty(r[index]) && Compare(r[index], target) < 0,
-            FilterOperator.LessOrEqual => r => !TypeInference.IsEmpty(r[index]) && Compare(r[index], target) <= 0,
+            FilterOperator.Equals => v => Compare(v, target) == 0,
+            FilterOperator.NotEquals => v => Compare(v, target) != 0,
+            FilterOperator.GreaterThan => v => !TypeInference.IsEmpty(v) && Compare(v, target) > 0,
+            FilterOperator.GreaterOrEqual => v => !TypeInference.IsEmpty(v) && Compare(v, target) >= 0,
+            FilterOperator.LessThan => v => !TypeInference.IsEmpty(v) && Compare(v, target) < 0,
+            FilterOperator.LessOrEqual => v => !TypeInference.IsEmpty(v) && Compare(v, target) <= 0,
             _ => _ => true,
         };
     }
@@ -170,17 +194,29 @@ public static class QueryEngine
         var category = table.Columns[categoryField];
         if (category is null)
             return AggregatedResult.Empty;
-        var valueColumns = valueFields.Select(f => table.Columns[f]).OfType<DataColumn>().ToList();
+        var values = valueFields.Select(f => table.Columns[f]).OfType<DataColumn>().Select(ResolvedField.FromColumn).ToList();
+        return AggregateBy(rows, ResolvedField.FromColumn(category), values, aggregation, granularity, topN);
+    }
+
+    /// <summary>
+    /// Группировка по произвольным полям (в том числе из связанных таблиц).
+    /// Без полей значений считается количество строк.
+    /// </summary>
+    public static AggregatedResult AggregateBy(
+        IEnumerable<DataRow> rows, ResolvedField category, IReadOnlyList<ResolvedField> valueFields,
+        Aggregation aggregation, DateGranularity granularity = DateGranularity.Month, int topN = 0)
+    {
         var categoryType = TypeInference.FromClr(category.DataType);
+        var getCategory = category.Get;
 
         var groups = rows
-            .GroupBy(r => CategoryKey(r[category], granularity))
+            .GroupBy(r => CategoryKey(getCategory(r), granularity))
             .Select(g => new
             {
                 Key = g.Key,
-                Values = valueColumns.Count == 0
+                Values = valueFields.Count == 0
                     ? [(double)g.Count()]
-                    : valueColumns.Select(c => Aggregate(g.Select(r => r[c]), aggregation)).ToArray(),
+                    : valueFields.Select(f => Aggregate(g.Select(f.Get), aggregation)).ToArray(),
             });
 
         var ordered = categoryType is ColumnType.Date or ColumnType.Integer or ColumnType.Decimal
@@ -194,9 +230,9 @@ public static class QueryEngine
                 : ordered.OrderByDescending(g => g.Values[0]).Take(topN).OrderBy(g => g.Key, Comparer<object>.Create(Compare)).ToList();
         }
 
-        var names = valueColumns.Count == 0
+        var names = valueFields.Count == 0
             ? ["Количество строк"]
-            : valueColumns.Select(c => $"{Labels.Of(aggregation)}: {c.ColumnName}").ToList();
+            : valueFields.Select(f => $"{Labels.Of(aggregation)}: {f.Name}").ToList();
         var series = Enumerable.Range(0, names.Count)
             .Select(i => ordered.Select(g => g.Values[i]).ToArray())
             .ToList();

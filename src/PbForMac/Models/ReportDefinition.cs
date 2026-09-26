@@ -8,6 +8,7 @@ public sealed class ReportDefinition
     public int Version { get; set; } = CurrentVersion;
     public List<DataSourceDefinition> Sources { get; set; } = [];
     public List<TransformStep> Steps { get; set; } = [];
+    public List<RelationshipDefinition> Relationships { get; set; } = [];
     public List<VisualDefinition> Visuals { get; set; } = [];
     public List<FilterDefinition> Filters { get; set; } = [];
 }
