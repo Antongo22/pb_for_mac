@@ -1,8 +1,10 @@
+using System.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PbForMac.Models;
 using PbForMac.Services;
 using PbForMac.Services.Importers;
+using PbForMac.ViewModels.Visuals;
 
 namespace PbForMac.ViewModels;
 
@@ -531,5 +533,68 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         {
             await _dialogs.ShowMessageAsync("Не удалось экспортировать", e.Message);
         }
+    }
+
+    [RelayCommand]
+    private async Task ExportExcelAsync()
+    {
+        if (!TryGetExcelExportSource(out var table, out var rows, out var suggestedName))
+        {
+            await _dialogs.ShowMessageAsync("Экспорт в Excel", "Нет таблицы или визуала для экспорта.");
+            return;
+        }
+
+        var path = await _dialogs.SaveFileAsync("Экспорт в Excel", suggestedName + ".xlsx",
+            new FileTypeFilter("Excel", [".xlsx"]));
+        if (path is null)
+            return;
+        try
+        {
+            if (!path.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+                path += ".xlsx";
+            ExcelExporter.Export(table, rows, path);
+            Status = $"Экспортировано: {path}";
+        }
+        catch (Exception e)
+        {
+            await _dialogs.ShowMessageAsync("Не удалось экспортировать", e.Message);
+        }
+    }
+
+    private bool TryGetExcelExportSource(out DataTable table, out IEnumerable<System.Data.DataRow> rows, out string suggestedName)
+    {
+        table = null!;
+        rows = [];
+        suggestedName = "Данные";
+
+        if (CurrentPage == Report && Report.SelectedVisual is TableVisualViewModel { Slice: { } tableSlice })
+        {
+            table = tableSlice.Table;
+            rows = tableSlice.Rows;
+            suggestedName = string.IsNullOrWhiteSpace(Report.SelectedVisual.DisplayTitle)
+                ? table.TableName
+                : Report.SelectedVisual.DisplayTitle;
+            return true;
+        }
+        if (CurrentPage == Report && Report.SelectedVisual is MatrixVisualViewModel { Slice: { } matrixSlice })
+        {
+            table = matrixSlice.Table;
+            rows = matrixSlice.Rows;
+            suggestedName = string.IsNullOrWhiteSpace(Report.SelectedVisual.DisplayTitle)
+                ? table.TableName
+                : Report.SelectedVisual.DisplayTitle;
+            return true;
+        }
+
+        var modelTable = Data.SelectedTable is { } item
+            ? Model.GetTable(item.Name)
+            : Model.Tables.FirstOrDefault();
+        if (modelTable is null)
+            return false;
+
+        table = modelTable;
+        rows = modelTable.Rows.Cast<System.Data.DataRow>();
+        suggestedName = modelTable.TableName;
+        return true;
     }
 }

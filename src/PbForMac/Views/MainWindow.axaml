@@ -24,6 +24,7 @@
           <NativeMenuItem Header="Сохранить как…" Command="{Binding SaveReportAsCommand}" Gesture="Meta+Shift+S" />
           <NativeMenuItemSeparator />
           <NativeMenuItem Header="Экспорт дашборда в PNG…" Command="{Binding ExportPngCommand}" Gesture="Meta+E" />
+          <NativeMenuItem Header="Экспорт в Excel…" Command="{Binding ExportExcelCommand}" Gesture="Meta+Shift+E" />
         </NativeMenu>
       </NativeMenuItem>
       <NativeMenuItem Header="Данные">
@@ -111,6 +112,9 @@
           <Rectangle Width="1" Height="22" Margin="8,0" Fill="{DynamicResource DividerBrush}" />
           <Button Classes="tool" Command="{Binding ExportPngCommand}" ToolTip.Tip="Сохранить дашборд как изображение">
             <StackPanel><PathIcon Data="{StaticResource IconImage}" /><TextBlock Text="Экспорт PNG" /></StackPanel>
+          </Button>
+          <Button Classes="tool" Command="{Binding ExportExcelCommand}" ToolTip.Tip="Экспорт таблицы или визуала в Excel">
+            <StackPanel><PathIcon Data="{StaticResource IconDownload}" /><TextBlock Text="Excel" /></StackPanel>
           </Button>
         </StackPanel>
 
