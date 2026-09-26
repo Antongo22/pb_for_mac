@@ -18,6 +18,8 @@ public sealed class DataModel
     public List<DataSourceDefinition> Sources { get; } = [];
     public List<TransformStep> Steps { get; } = [];
     public List<RelationshipDefinition> Relationships { get; } = [];
+    /// <summary>Позиции карточек таблиц на диаграмме связей.</summary>
+    public List<TableLayoutDefinition> TableLayouts { get; } = [];
     public IReadOnlyList<DataTable> Tables => _tables;
     public IReadOnlyDictionary<TransformStep, string> StepErrors => _stepErrors;
 
@@ -163,6 +165,7 @@ public sealed class DataModel
         var removed = new HashSet<string>(names, StringComparer.OrdinalIgnoreCase);
         Sources.RemoveAll(s => removed.Contains(s.TableName));
         Relationships.RemoveAll(r => removed.Any(r.Connects));
+        TableLayouts.RemoveAll(l => removed.Contains(l.Table));
         foreach (var name in removed)
             _raw.Remove(name);
 
@@ -202,17 +205,47 @@ public sealed class DataModel
         return errors;
     }
 
+    /// <summary>Задаёт или обновляет позицию карточки таблицы на диаграмме.</summary>
+    public void SetTableLayout(string table, double x, double y)
+    {
+        var layout = TableLayouts.FirstOrDefault(l => string.Equals(l.Table, table, StringComparison.OrdinalIgnoreCase));
+        if (layout is null)
+        {
+            layout = new TableLayoutDefinition { Table = table };
+            TableLayouts.Add(layout);
+        }
+        layout.Table = table;
+        layout.X = Math.Max(0, x);
+        layout.Y = Math.Max(0, y);
+    }
+
+    /// <summary>Возвращает сохранённую позицию или null, если ещё не задана.</summary>
+    public TableLayoutDefinition? GetTableLayout(string table) =>
+        TableLayouts.FirstOrDefault(l => string.Equals(l.Table, table, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Раскладывает все таблицы автоматически и сохраняет позиции.</summary>
+    public void AutoLayoutTables()
+    {
+        var positions = DiagramLayout.Arrange(_tables, Relationships);
+        TableLayouts.RemoveAll(l => _tables.All(t => !string.Equals(t.TableName, l.Table, StringComparison.OrdinalIgnoreCase)));
+        foreach (var (name, (x, y)) in positions)
+            SetTableLayout(name, x, y);
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
     /// <summary>Заменяет содержимое модели (используется при открытии отчёта).</summary>
     public IReadOnlyList<string> Load(IEnumerable<DataSourceDefinition> sources, IEnumerable<TransformStep> steps,
-        IEnumerable<RelationshipDefinition>? relationships = null)
+        IEnumerable<RelationshipDefinition>? relationships = null, IEnumerable<TableLayoutDefinition>? layouts = null)
     {
         Sources.Clear();
         Steps.Clear();
         Relationships.Clear();
+        TableLayouts.Clear();
         _raw.Clear();
         Sources.AddRange(sources);
         Steps.AddRange(steps);
         Relationships.AddRange(relationships ?? []);
+        TableLayouts.AddRange(layouts ?? []);
         return Reload();
     }
 
@@ -221,6 +254,7 @@ public sealed class DataModel
         Sources.Clear();
         Steps.Clear();
         Relationships.Clear();
+        TableLayouts.Clear();
         _raw.Clear();
         Rebuild();
     }

@@ -39,6 +39,8 @@ public sealed partial class TransformViewModel : ViewModelBase
     public bool HasTables => Tables.Count > 0;
     public bool HasSteps => Steps.Count > 0;
     public bool HasColumn => SelectedColumn is not null;
+    public bool HasCheckedColumns => Columns.Any(c => c.IsChecked);
+    public int CheckedColumnCount => Columns.Count(c => c.IsChecked);
 
     public string ExpressionHelp =>
         "Синтаксис выражений DataColumn.Expression:\n" +
@@ -109,6 +111,8 @@ public sealed partial class TransformViewModel : ViewModelBase
     public ObservableCollection<RelationshipItemViewModel> Relationships { get; } = [];
     public ObservableCollection<string> RelationshipFromColumns { get; } = [];
     public ObservableCollection<string> RelationshipToColumns { get; } = [];
+    public ObservableCollection<DiagramTableViewModel> DiagramTables { get; } = [];
+    public ObservableCollection<DiagramLinkViewModel> DiagramLinks { get; } = [];
     public bool HasRelationships => Relationships.Count > 0;
 
     [ObservableProperty]
@@ -122,6 +126,18 @@ public sealed partial class TransformViewModel : ViewModelBase
 
     [ObservableProperty]
     private string? _relationshipToColumn;
+
+    [ObservableProperty]
+    private DiagramLinkViewModel? _selectedDiagramLink;
+
+    [ObservableProperty]
+    private string? _diagramHint;
+
+    /// <summary>Первый клик по столбцу на диаграмме при создании связи.</summary>
+    private (DiagramTableViewModel Table, DiagramColumnViewModel Column)? _linkStart;
+
+    public Action<DiagramTableViewModel, double, double> OnDiagramPositionChanged => SaveDiagramPosition;
+    public Action<DiagramTableViewModel, DiagramColumnViewModel> OnDiagramColumnClicked => DiagramColumnClicked;
 
     private DataTable? CurrentTable => _model.GetTable(SelectedTable);
 
@@ -148,6 +164,7 @@ public sealed partial class TransformViewModel : ViewModelBase
                 _model.RelationshipIssues.GetValueOrDefault(relationship), item => _ = RemoveRelationshipAsync(item)));
         }
         OnPropertyChanged(nameof(HasRelationships));
+        RebuildDiagram();
 
         if (RelationshipFromTable is null || !Tables.Contains(RelationshipFromTable))
             RelationshipFromTable = Tables.FirstOrDefault();
@@ -155,6 +172,141 @@ public sealed partial class TransformViewModel : ViewModelBase
             RelationshipToTable = Tables.FirstOrDefault(t => t != RelationshipFromTable) ?? Tables.FirstOrDefault();
         FillColumns(RelationshipFromTable, RelationshipFromColumns);
         FillColumns(RelationshipToTable, RelationshipToColumns);
+    }
+
+    private void RebuildDiagram()
+    {
+        var previous = DiagramTables.ToDictionary(t => t.Name, t => (t.X, t.Y), StringComparer.OrdinalIgnoreCase);
+        var selected = SelectedDiagramLink?.Relationship;
+        DiagramTables.Clear();
+        DiagramLinks.Clear();
+        SelectedDiagramLink = null;
+
+        var keyColumns = new HashSet<(string Table, string Column)>(
+            _model.Relationships.SelectMany(r => new[]
+            {
+                (r.FromTable, r.FromColumn),
+                (r.ToTable, r.ToColumn),
+            }),
+            // custom comparer via tuple - use StringComparer via custom
+            EqualityComparer<(string Table, string Column)>.Create(
+                (a, b) => string.Equals(a.Table, b.Table, StringComparison.OrdinalIgnoreCase)
+                          && string.Equals(a.Column, b.Column, StringComparison.OrdinalIgnoreCase),
+                t => HashCode.Combine(StringComparer.OrdinalIgnoreCase.GetHashCode(t.Table),
+                    StringComparer.OrdinalIgnoreCase.GetHashCode(t.Column))));
+
+        var needLayout = false;
+        foreach (var table in _model.Tables)
+        {
+            var layout = _model.GetTableLayout(table.TableName);
+            double x, y;
+            if (layout is not null)
+                (x, y) = (layout.X, layout.Y);
+            else if (previous.TryGetValue(table.TableName, out var pos))
+                (x, y) = pos;
+            else
+            {
+                needLayout = true;
+                (x, y) = (0, 0);
+            }
+
+            var columns = table.Columns.Cast<DataColumn>().Select(c =>
+                new DiagramColumnViewModel(c.ColumnName, TypeInference.FromClr(c.DataType),
+                    keyColumns.Contains((table.TableName, c.ColumnName))));
+            DiagramTables.Add(new DiagramTableViewModel(table.TableName, columns, x, y));
+        }
+
+        if (needLayout && DiagramTables.Count > 0 && _model.TableLayouts.Count == 0)
+        {
+            var positions = DiagramLayout.Arrange(_model.Tables, _model.Relationships);
+            foreach (var card in DiagramTables)
+            {
+                if (positions.TryGetValue(card.Name, out var pos))
+                {
+                    card.X = pos.X;
+                    card.Y = pos.Y;
+                    _model.SetTableLayout(card.Name, pos.X, pos.Y);
+                }
+            }
+        }
+
+        var byName = DiagramTables.ToDictionary(t => t.Name, StringComparer.OrdinalIgnoreCase);
+        foreach (var relationship in _model.Relationships)
+        {
+            if (!byName.TryGetValue(relationship.FromTable, out var from) || !byName.TryGetValue(relationship.ToTable, out var to))
+                continue;
+            var link = new DiagramLinkViewModel(relationship, from, to, _model.MatchRate(relationship),
+                _model.RelationshipIssues.GetValueOrDefault(relationship));
+            DiagramLinks.Add(link);
+            if (selected is not null && relationship.SameAs(selected))
+                SelectedDiagramLink = link;
+        }
+
+        DiagramHint = DiagramTables.Count == 0
+            ? null
+            : "Перетаскивайте карточки за заголовок. Клик по столбцу факта, затем по столбцу справочника — новая связь. Клик по линии — выбрать связь.";
+    }
+
+    private void SaveDiagramPosition(DiagramTableViewModel table, double x, double y) =>
+        _model.SetTableLayout(table.Name, x, y);
+
+    private void DiagramColumnClicked(DiagramTableViewModel table, DiagramColumnViewModel column)
+    {
+        Error = null;
+        if (_linkStart is null)
+        {
+            ClearDiagramColumnSelection();
+            column.IsSelected = true;
+            table.IsHighlighted = true;
+            _linkStart = (table, column);
+            DiagramHint = $"Связь от «{table.Name}[{column.Name}]» — выберите столбец справочника на другой таблице.";
+            RelationshipFromTable = table.Name;
+            RelationshipFromColumn = column.Name;
+            return;
+        }
+
+        var (fromTable, fromColumn) = _linkStart.Value;
+        ClearDiagramColumnSelection();
+        _linkStart = null;
+        if (ReferenceEquals(fromTable, table))
+        {
+            DiagramHint = "Выберите столбец другой таблицы.";
+            return;
+        }
+
+        RelationshipFromTable = fromTable.Name;
+        RelationshipFromColumn = fromColumn.Name;
+        RelationshipToTable = table.Name;
+        RelationshipToColumn = column.Name;
+        AddRelationship();
+        DiagramHint = "Перетаскивайте карточки за заголовок. Клик по столбцу факта, затем по столбцу справочника — новая связь.";
+    }
+
+    private void ClearDiagramColumnSelection()
+    {
+        foreach (var card in DiagramTables)
+        {
+            card.IsHighlighted = false;
+            foreach (var col in card.Columns)
+                col.IsSelected = false;
+        }
+    }
+
+    [RelayCommand]
+    private void AutoLayoutDiagram()
+    {
+        _model.AutoLayoutTables();
+        Info = "Таблицы на диаграмме разложены автоматически.";
+    }
+
+    [RelayCommand]
+    private async Task RemoveSelectedDiagramLinkAsync()
+    {
+        if (SelectedDiagramLink is null)
+            return;
+        var item = Relationships.FirstOrDefault(r => r.Relationship.SameAs(SelectedDiagramLink.Relationship));
+        if (item is not null)
+            await RemoveRelationshipAsync(item);
     }
 
     partial void OnRelationshipFromTableChanged(string? value)
@@ -256,11 +408,22 @@ public sealed partial class TransformViewModel : ViewModelBase
         {
             foreach (DataColumn column in table.Columns)
             {
-                Columns.Add(new ColumnItem(column.ColumnName, TypeInference.FromClr(column.DataType), InsertColumn));
+                var item = new ColumnItem(column.ColumnName, TypeInference.FromClr(column.DataType), InsertColumn);
+                item.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(ColumnItem.IsChecked))
+                    {
+                        OnPropertyChanged(nameof(HasCheckedColumns));
+                        OnPropertyChanged(nameof(CheckedColumnCount));
+                    }
+                };
+                Columns.Add(item);
                 GroupColumns.Add(new CheckItem(column.ColumnName));
             }
         }
         SelectedColumn = Columns.FirstOrDefault(c => c.Name == selectedColumn);
+        OnPropertyChanged(nameof(HasCheckedColumns));
+        OnPropertyChanged(nameof(CheckedColumnCount));
         if (FilterColumn is null || Columns.All(c => c.Name != FilterColumn))
             FilterColumn = Columns.FirstOrDefault()?.Name;
         if (AggregationColumn is null || Columns.All(c => c.Name != AggregationColumn))
@@ -307,11 +470,103 @@ public sealed partial class TransformViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void RemoveColumn()
+    private async Task RemoveColumnAsync()
     {
         if (SelectedTable is null || SelectedColumn is null)
             return;
+        if (!await ConfirmRemoveColumnsAsync([SelectedColumn.Name]))
+            return;
         TryAddStep(new RemoveColumnStep { Table = SelectedTable, Column = SelectedColumn.Name });
+    }
+
+    [RelayCommand]
+    private async Task RemoveCheckedColumnsAsync()
+    {
+        if (SelectedTable is null)
+            return;
+        var names = Columns.Where(c => c.IsChecked).Select(c => c.Name).ToList();
+        if (names.Count == 0)
+            return;
+        if (!await ConfirmRemoveColumnsAsync(names))
+            return;
+        TryAddStep(names.Count == 1
+            ? new RemoveColumnStep { Table = SelectedTable, Column = names[0] }
+            : new RemoveColumnsStep { Table = SelectedTable, Columns = names });
+    }
+
+    [RelayCommand]
+    private async Task KeepCheckedColumnsAsync()
+    {
+        if (SelectedTable is null)
+            return;
+        var names = Columns.Where(c => c.IsChecked).Select(c => c.Name).ToList();
+        if (names.Count == 0)
+        {
+            Error = "Отметьте столбцы, которые нужно оставить.";
+            return;
+        }
+        var removed = Columns.Where(c => !c.IsChecked).Select(c => c.Name).ToList();
+        if (removed.Count == 0)
+        {
+            Info = "Уже оставлены все столбцы.";
+            return;
+        }
+        if (!await ConfirmRemoveColumnsAsync(removed, keepMode: true))
+            return;
+        TryAddStep(new KeepColumnsStep { Table = SelectedTable, Columns = names });
+    }
+
+    [RelayCommand]
+    private void SelectAllColumns()
+    {
+        var all = Columns.All(c => c.IsChecked);
+        foreach (var column in Columns)
+            column.IsChecked = !all;
+    }
+
+    [RelayCommand]
+    private void MoveColumnLeft()
+    {
+        if (SelectedTable is null || SelectedColumn is null || CurrentTable is null)
+            return;
+        var ordinal = CurrentTable.Columns[SelectedColumn.Name]?.Ordinal ?? 0;
+        if (ordinal <= 0)
+            return;
+        var name = SelectedColumn.Name;
+        if (TryAddStep(new MoveColumnStep { Table = SelectedTable, Column = name, NewOrdinal = ordinal - 1 }))
+            SelectedColumn = Columns.FirstOrDefault(c => c.Name == name);
+    }
+
+    [RelayCommand]
+    private void MoveColumnRight()
+    {
+        if (SelectedTable is null || SelectedColumn is null || CurrentTable is null)
+            return;
+        var ordinal = CurrentTable.Columns[SelectedColumn.Name]?.Ordinal ?? 0;
+        if (ordinal >= CurrentTable.Columns.Count - 1)
+            return;
+        var name = SelectedColumn.Name;
+        if (TryAddStep(new MoveColumnStep { Table = SelectedTable, Column = name, NewOrdinal = ordinal + 1 }))
+            SelectedColumn = Columns.FirstOrDefault(c => c.Name == name);
+    }
+
+    private async Task<bool> ConfirmRemoveColumnsAsync(IReadOnlyList<string> columns, bool keepMode = false)
+    {
+        var related = _model.Relationships
+            .Where(r => string.Equals(r.FromTable, SelectedTable, StringComparison.OrdinalIgnoreCase)
+                        && columns.Contains(r.FromColumn, StringComparer.OrdinalIgnoreCase)
+                        || string.Equals(r.ToTable, SelectedTable, StringComparison.OrdinalIgnoreCase)
+                        && columns.Contains(r.ToColumn, StringComparer.OrdinalIgnoreCase))
+            .ToList();
+        var title = keepMode ? "Оставить выбранные столбцы" : "Удалить столбцы";
+        var action = keepMode
+            ? $"Оставить только: {string.Join(", ", Columns.Where(c => c.IsChecked).Select(c => c.Name))}. Будут удалены: {string.Join(", ", columns)}."
+            : columns.Count == 1
+                ? $"Удалить столбец «{columns[0]}»?"
+                : $"Удалить столбцы ({columns.Count}): {string.Join(", ", columns)}?";
+        if (related.Count > 0)
+            action += $"\n\nЗатронутые связи перестанут работать: {string.Join("; ", related)}.";
+        return await _dialogs.ConfirmAsync(title, action);
     }
 
     [RelayCommand]

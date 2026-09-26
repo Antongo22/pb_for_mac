@@ -378,7 +378,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             Status = $"Открытие {Path.GetFileName(path)}…";
             var report = ReportSerializer.Load(path);
             Report.Clear();
-            var errors = Model.Load(report.Sources, report.Steps, report.Relationships);
+            var errors = Model.Load(report.Sources, report.Steps, report.Relationships, report.TableLayouts);
             Report.Load(report.Visuals, report.Filters);
             ReportPath = path;
             CurrentPage = Report;
@@ -425,6 +425,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 Sources = Model.Sources,
                 Steps = Model.Steps,
                 Relationships = Model.Relationships,
+                TableLayouts = Model.TableLayouts,
                 Visuals = Report.GetVisualDefinitions(),
                 Filters = Report.GetFilterDefinitions(),
             }, path);

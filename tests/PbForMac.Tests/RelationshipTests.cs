@@ -185,4 +185,47 @@ public class RelationshipTests
         // поэтому связь идёт products → price: из продаж цены доступны через товары.
         Assert.Equal("products[ID_PRODUCT] → price[ID_PRODUCT]", Describe(model.Relationships));
     }
+
+    [Fact]
+    public void DiagramLayout_PlacesLookupsToTheRightOfFacts()
+    {
+        var model = StarModel();
+        var positions = DiagramLayout.Arrange(model.Tables, model.Relationships);
+
+        Assert.True(positions["sales"].X < positions["products"].X);
+        Assert.True(positions["products"].X < positions["brands"].X);
+        Assert.True(positions["sales"].X < positions["sellers"].X);
+    }
+
+    [Fact]
+    public void ReportSerializer_RoundTripsTableLayouts()
+    {
+        var report = new ReportDefinition
+        {
+            Relationships =
+            [
+                new RelationshipDefinition { FromTable = "a", FromColumn = "id", ToTable = "b", ToColumn = "id" },
+            ],
+            TableLayouts =
+            [
+                new TableLayoutDefinition { Table = "a", X = 40, Y = 60 },
+                new TableLayoutDefinition { Table = "b", X = 300, Y = 60 },
+            ],
+        };
+
+        var restored = ReportSerializer.Deserialize(ReportSerializer.Serialize(report));
+        Assert.Equal(2, restored.TableLayouts.Count);
+        Assert.Equal(40, restored.TableLayouts[0].X);
+        Assert.Equal("b", restored.TableLayouts[1].Table);
+    }
+
+    [Fact]
+    public void DataModel_AutoLayoutPersistsPositions()
+    {
+        var model = StarModel();
+        model.AutoLayoutTables();
+        Assert.Equal(model.Tables.Count, model.TableLayouts.Count);
+        Assert.NotNull(model.GetTableLayout("sales"));
+        Assert.True(model.GetTableLayout("sales")!.X < model.GetTableLayout("products")!.X);
+    }
 }

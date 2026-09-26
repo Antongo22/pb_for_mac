@@ -27,10 +27,32 @@
           <StackPanel DockPanel.Dock="Top">
             <TextBlock Classes="paneHeader" Text="Таблица" />
             <ComboBox ItemsSource="{Binding Tables}" SelectedItem="{Binding SelectedTable}" />
-            <TextBlock Classes="caption" Text="Столбцы" />
+            <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+              <TextBlock Classes="caption" Text="Столбцы" Margin="0" VerticalAlignment="Center" />
+              <Button Grid.Column="1" Classes="icon" Command="{Binding SelectAllColumnsCommand}"
+                      ToolTip.Tip="Отметить / снять все">
+                <TextBlock Text="☑" FontSize="14" />
+              </Button>
+            </Grid>
           </StackPanel>
 
           <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,10,0,0">
+            <StackPanel IsVisible="{Binding HasCheckedColumns}" Spacing="6">
+              <TextBlock Classes="caption" Text="{Binding CheckedColumnCount, StringFormat=Отмечено: {0}}" />
+              <Button HorizontalAlignment="Stretch" Command="{Binding RemoveCheckedColumnsCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <PathIcon Data="{StaticResource IconDelete}" Width="12" Height="12" />
+                  <TextBlock Text="Удалить отмеченные" />
+                </StackPanel>
+              </Button>
+              <Button HorizontalAlignment="Stretch" Command="{Binding KeepCheckedColumnsCommand}"
+                      ToolTip.Tip="Оставить только отмеченные столбцы, остальные удалить">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <PathIcon Data="{StaticResource IconFilter}" Width="12" Height="12" />
+                  <TextBlock Text="Оставить только отмеченные" />
+                </StackPanel>
+              </Button>
+            </StackPanel>
             <StackPanel IsVisible="{Binding HasColumn}" Spacing="6">
               <TextBlock Classes="caption" Text="Выбранный столбец" />
               <Grid ColumnDefinitions="*,Auto">
@@ -40,6 +62,12 @@
               <Grid ColumnDefinitions="*,Auto">
                 <ComboBox ItemsSource="{Binding ColumnTypes}" SelectedItem="{Binding TargetType}" />
                 <Button Grid.Column="1" Margin="6,0,0,0" Content="Сменить тип" Command="{Binding ChangeTypeCommand}" />
+              </Grid>
+              <Grid ColumnDefinitions="*,*" Margin="0,0,0,0">
+                <Button Content="← Влево" Command="{Binding MoveColumnLeftCommand}"
+                        ToolTip.Tip="Переместить столбец левее" />
+                <Button Grid.Column="1" Margin="6,0,0,0" Content="Вправо →" Command="{Binding MoveColumnRightCommand}"
+                        ToolTip.Tip="Переместить столбец правее" />
               </Grid>
               <Button HorizontalAlignment="Stretch" Command="{Binding RemoveColumnCommand}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
@@ -54,9 +82,11 @@
           <ListBox ItemsSource="{Binding Columns}" SelectedItem="{Binding SelectedColumn}" Background="Transparent">
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="vm:ColumnItem">
-                <Grid ColumnDefinitions="24,*">
-                  <TextBlock Text="{Binding TypeGlyph}" Foreground="{DynamicResource SubtleTextBrush}" ToolTip.Tip="{Binding TypeLabel}" />
-                  <TextBlock Grid.Column="1" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                <Grid ColumnDefinitions="Auto,24,*" Margin="0,1">
+                  <CheckBox IsChecked="{Binding IsChecked}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                  <TextBlock Grid.Column="1" Text="{Binding TypeGlyph}" Foreground="{DynamicResource SubtleTextBrush}"
+                             ToolTip.Tip="{Binding TypeLabel}" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                 </Grid>
               </DataTemplate>
             </ListBox.ItemTemplate>
@@ -167,57 +197,48 @@
           </TabItem>
 
           <TabItem Header="Связи">
-            <ScrollViewer>
-              <StackPanel Spacing="10" MaxWidth="860" HorizontalAlignment="Left">
+            <DockPanel>
+              <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
                 <TextBlock Classes="hint"
-                           Text="Связь «многие к одному» соединяет таблицу фактов (например, продажи) со справочником (товары, магазины) по ключу. Столбцы справочника становятся доступны в визуалах таблицы фактов как «Таблица[Столбец]», а фильтры и срезы по справочнику фильтруют таблицу фактов. Связи с новыми таблицами ищутся автоматически при загрузке." />
-                <Button Command="{Binding DetectRelationshipsCommand}" Content="Найти связи автоматически" />
-
-                <TextBlock Classes="hint" IsVisible="{Binding !HasRelationships}"
-                           Text="Связей пока нет. Нажмите «Найти связи автоматически» или добавьте связь вручную ниже." />
-                <ItemsControl ItemsSource="{Binding Relationships}">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="vm:RelationshipItemViewModel">
-                      <Border Background="{DynamicResource PageBrush}" CornerRadius="4" Padding="10,8" Margin="0,0,0,6"
-                              BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
-                        <Grid ColumnDefinitions="*,Auto">
-                          <StackPanel Spacing="3">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                              <TextBlock Text="{Binding FromText}" FontWeight="SemiBold" />
-                              <TextBlock Text="→" Foreground="{StaticResource SelectionBrush}" FontWeight="Bold" />
-                              <TextBlock Text="{Binding ToText}" FontWeight="SemiBold" />
-                            </StackPanel>
-                            <TextBlock Classes="hint" Text="{Binding Details}" />
-                            <TextBlock Text="{Binding Issue}" IsVisible="{Binding HasIssue}" TextWrapping="Wrap" FontSize="12"
-                                       Foreground="{DynamicResource ErrorBrush}" />
-                          </StackPanel>
-                          <Button Grid.Column="1" Classes="icon" VerticalAlignment="Top" Command="{Binding Remove}" ToolTip.Tip="Удалить связь">
-                            <PathIcon Data="{StaticResource IconDelete}" />
-                          </Button>
-                        </Grid>
-                      </Border>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-                <TextBlock Classes="paneHeader" Text="Новая связь" Margin="0,8,0,0" />
-                <Grid ColumnDefinitions="*,Auto,*">
-                  <StackPanel Spacing="6">
-                    <TextBlock Classes="hint" Text="Многие — таблица фактов" />
-                    <ComboBox ItemsSource="{Binding Tables}" SelectedItem="{Binding RelationshipFromTable}" />
-                    <ComboBox ItemsSource="{Binding RelationshipFromColumns}" SelectedItem="{Binding RelationshipFromColumn}" PlaceholderText="Ключ" />
-                  </StackPanel>
-                  <TextBlock Grid.Column="1" Text="→" FontSize="20" Margin="14,22,14,0" VerticalAlignment="Center"
-                             Foreground="{StaticResource SelectionBrush}" />
-                  <StackPanel Grid.Column="2" Spacing="6">
-                    <TextBlock Classes="hint" Text="Один — справочник (уникальный ключ)" />
-                    <ComboBox ItemsSource="{Binding Tables}" SelectedItem="{Binding RelationshipToTable}" />
-                    <ComboBox ItemsSource="{Binding RelationshipToColumns}" SelectedItem="{Binding RelationshipToColumn}" PlaceholderText="Ключ" />
-                  </StackPanel>
-                </Grid>
-                <Button Classes="accent" Content="Добавить связь" Command="{Binding AddRelationshipCommand}" />
+                           Text="Диаграмма модели: карточки таблиц и связи «многие к одному». Столбцы справочника доступны в визуалах фактов как «Таблица[Столбец]»; фильтры справочника фильтруют факты." />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Command="{Binding DetectRelationshipsCommand}" Content="Найти связи автоматически" />
+                  <Button Command="{Binding AutoLayoutDiagramCommand}" Content="Автораскладка"
+                          ToolTip.Tip="Разложить таблицы по слоям: факты слева, справочники правее" />
+                  <Button Command="{Binding RemoveSelectedDiagramLinkCommand}" Content="Удалить выбранную связь"
+                          IsEnabled="{Binding SelectedDiagramLink, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                </StackPanel>
+                <TextBlock Classes="hint" Text="{Binding DiagramHint}" IsVisible="{Binding DiagramHint, Converter={x:Static ObjectConverters.IsNotNull}}" />
               </StackPanel>
-            </ScrollViewer>
+
+              <Expander DockPanel.Dock="Bottom" Header="Добавить связь вручную" IsExpanded="{Binding !HasRelationships}" Margin="0,8,0,0">
+                <StackPanel Spacing="8" Margin="0,8,0,0">
+                  <Grid ColumnDefinitions="*,Auto,*">
+                    <StackPanel Spacing="6">
+                      <TextBlock Classes="hint" Text="Многие — таблица фактов" />
+                      <ComboBox ItemsSource="{Binding Tables}" SelectedItem="{Binding RelationshipFromTable}" />
+                      <ComboBox ItemsSource="{Binding RelationshipFromColumns}" SelectedItem="{Binding RelationshipFromColumn}" PlaceholderText="Ключ" />
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Text="→" FontSize="20" Margin="14,22,14,0" VerticalAlignment="Center"
+                               Foreground="{StaticResource SelectionBrush}" />
+                    <StackPanel Grid.Column="2" Spacing="6">
+                      <TextBlock Classes="hint" Text="Один — справочник (уникальный ключ)" />
+                      <ComboBox ItemsSource="{Binding Tables}" SelectedItem="{Binding RelationshipToTable}" />
+                      <ComboBox ItemsSource="{Binding RelationshipToColumns}" SelectedItem="{Binding RelationshipToColumn}" PlaceholderText="Ключ" />
+                    </StackPanel>
+                  </Grid>
+                  <Button Classes="accent" Content="Добавить связь" Command="{Binding AddRelationshipCommand}" HorizontalAlignment="Left" />
+                </StackPanel>
+              </Expander>
+
+              <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" Background="{DynamicResource WorkspaceBrush}"
+                      MinHeight="360" CornerRadius="4" ClipToBounds="True">
+                <controls:RelationshipDiagram x:Name="RelationshipDiagram"
+                                             Tables="{Binding DiagramTables}"
+                                             Links="{Binding DiagramLinks}"
+                                             SelectedLink="{Binding SelectedDiagramLink}" />
+              </Border>
+            </DockPanel>
           </TabItem>
         </TabControl>
       </DockPanel>
