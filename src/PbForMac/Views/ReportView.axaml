@@ -48,6 +48,7 @@
                        Text="Выберите тип визуализации справа — поля подставятся автоматически, их можно поменять в панели «Поля»." />
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" IsVisible="{Binding !HasData}">
               <Button Classes="accent" Content="Получить данные" Command="{Binding ImportCommand}" />
+              <Button Content="Из папки" Command="{Binding ImportFolderCommand}" />
               <Button Content="Открыть пример" Command="{Binding OpenSampleCommand}" />
             </StackPanel>
           </StackPanel>

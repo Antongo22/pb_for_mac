@@ -11,8 +11,11 @@
       <PathIcon Data="{StaticResource IconData}" Width="48" Height="48" Foreground="{DynamicResource SubtleTextBrush}" />
       <TextBlock Text="Данные ещё не загружены" FontSize="18" HorizontalAlignment="Center" />
       <TextBlock Classes="hint" HorizontalAlignment="Center" TextAlignment="Center"
-                 Text="Поддерживаются CSV, Excel, JSON, XML и SQLite.&#10;Файлы можно перетащить прямо в окно." />
-      <Button Classes="accent" HorizontalAlignment="Center" Command="{Binding ImportCommand}" Content="Получить данные" />
+                 Text="Поддерживаются CSV, Excel, JSON, XML и SQLite, а также целые папки с файлами.&#10;Файлы и папки можно перетащить прямо в окно." />
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+        <Button Classes="accent" Command="{Binding ImportCommand}" Content="Выбрать файлы" />
+        <Button Command="{Binding ImportFolderCommand}" Content="Выбрать папку" />
+      </StackPanel>
     </StackPanel>
 
     <Grid ColumnDefinitions="230,*,260" IsVisible="{Binding HasTables}">
@@ -25,7 +28,14 @@
             <Button HorizontalAlignment="Stretch" Command="{Binding ImportCommand}">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <PathIcon Data="{StaticResource IconAdd}" Width="12" Height="12" />
-                <TextBlock Text="Добавить данные" />
+                <TextBlock Text="Добавить файлы" />
+              </StackPanel>
+            </Button>
+            <Button HorizontalAlignment="Stretch" Command="{Binding ImportFolderCommand}"
+                    ToolTip.Tip="Объединить файлы папки в одну таблицу или загрузить по отдельности">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Data="{StaticResource IconFolder}" Width="12" Height="12" />
+                <TextBlock Text="Добавить папку" />
               </StackPanel>
             </Button>
             <Button HorizontalAlignment="Stretch" Command="{Binding RemoveTableCommand}">

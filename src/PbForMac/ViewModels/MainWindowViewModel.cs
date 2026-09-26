@@ -10,13 +10,23 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 {
     private static readonly FileTypeFilter ReportFilter = new("Отчёт PbForMac", [ReportSerializer.Extension]);
 
+    private static readonly IReadOnlyList<FileTypeFilter> DataFilters =
+    [
+        new("Все поддерживаемые данные", ImporterFactory.SupportedExtensions.ToList()),
+        new("CSV / TSV", [".csv", ".tsv", ".txt"]),
+        new("Excel", [".xlsx", ".xlsm"]),
+        new("JSON", [".json"]),
+        new("XML", [".xml"]),
+        new("SQLite", [".db", ".sqlite", ".sqlite3"]),
+    ];
+
     private readonly IDialogService _dialogs;
 
     public MainWindowViewModel(IDialogService dialogs)
     {
         _dialogs = dialogs;
-        Report = new ReportViewModel(Model, ImportCommand, OpenSampleCommand);
-        Data = new DataViewModel(Model, dialogs, ImportCommand);
+        Report = new ReportViewModel(Model, ImportCommand, ImportFolderCommand, OpenSampleCommand);
+        Data = new DataViewModel(Model, dialogs, ImportCommand, ImportFolderCommand);
         Transform = new TransformViewModel(Model);
         _currentPage = Report;
     }
@@ -60,37 +70,40 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private async Task ImportAsync()
     {
-        var extensions = ImporterFactory.SupportedExtensions.ToList();
-        var paths = await _dialogs.OpenFilesAsync("Получить данные",
-        [
-            new FileTypeFilter("Все поддерживаемые", extensions),
-            new FileTypeFilter("CSV / TSV", [".csv", ".tsv", ".txt"]),
-            new FileTypeFilter("Excel", [".xlsx", ".xlsm"]),
-            new FileTypeFilter("JSON", [".json"]),
-            new FileTypeFilter("XML", [".xml"]),
-            new FileTypeFilter("SQLite", [".db", ".sqlite", ".sqlite3"]),
-        ], allowMultiple: true);
-
+        var paths = await _dialogs.OpenFilesAsync("Получить данные", DataFilters, allowMultiple: true);
         foreach (var path in paths)
             await ImportFileAsync(path);
     }
 
-    /// <summary>Открывает отчёт .pbm или импортирует файл данных.</summary>
-    public Task OpenPathAsync(string path) =>
-        path.EndsWith(ReportSerializer.Extension, StringComparison.OrdinalIgnoreCase)
+    [RelayCommand]
+    private async Task ImportFolderAsync()
+    {
+        var folder = await _dialogs.OpenFolderAsync("Получить данные из папки");
+        if (folder is not null)
+            await ImportFolderPathAsync(folder);
+    }
+
+    /// <summary>Открывает отчёт .pbm, импортирует файл данных или папку.</summary>
+    public Task OpenPathAsync(string path)
+    {
+        if (Directory.Exists(path))
+            return ImportFolderPathAsync(path);
+        return path.EndsWith(ReportSerializer.Extension, StringComparison.OrdinalIgnoreCase)
             ? OpenReportFileAsync(path)
             : ImportFileAsync(path);
+    }
 
-    /// <summary>Импортирует файл (с выбором листов/таблиц) и возвращает имена новых таблиц.</summary>
-    public async Task<IReadOnlyList<string>> ImportFileAsync(string path)
+    /// <summary>Импортирует файл; если в нём несколько листов или таблиц, предлагает выбрать.</summary>
+    public async Task ImportFileAsync(string path)
     {
-        var names = new List<string>();
+        var sources = new List<DataSourceDefinition>();
         try
         {
             IsBusy = true;
-            Status = $"Загрузка {Path.GetFileName(path)}…";
+            Status = $"Чтение {Path.GetFileName(path)}…";
             var kind = ImporterFactory.KindFor(path);
             var items = await Task.Run(() => ImporterFactory.Create(kind).ListItems(path));
+            IsBusy = false;
 
             IReadOnlyList<string?> selected;
             if (items.Count <= 1)
@@ -104,43 +117,114 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 selected = chosen ?? [];
             }
 
-            var fileName = Path.GetFileNameWithoutExtension(path);
-            foreach (var item in selected)
+            sources.AddRange(selected.Select(item => new DataSourceDefinition
             {
-                var source = new DataSourceDefinition
-                {
-                    Kind = kind,
-                    Path = Path.GetFullPath(path),
-                    Item = item,
-                    TableName = Model.UniqueTableName(items.Count > 1 ? item! : fileName),
-                };
+                Kind = kind,
+                Path = Path.GetFullPath(path),
+                Item = item,
+                TableName = items.Count > 1 ? item! : Path.GetFileNameWithoutExtension(path),
+            }));
+        }
+        catch (Exception e)
+        {
+            IsBusy = false;
+            Status = "Ошибка загрузки";
+            await _dialogs.ShowMessageAsync("Не удалось загрузить данные", $"{Path.GetFileName(path)}: {e.Message}");
+            return;
+        }
+
+        await AddSourcesAsync(Path.GetFileName(path), sources);
+    }
+
+    /// <summary>
+    /// Импортирует папку: объединяет файлы в одну таблицу (как источник «Папка» в Power BI)
+    /// или загружает каждый файл отдельной таблицей — на выбор пользователя.
+    /// </summary>
+    public async Task ImportFolderPathAsync(string folder)
+    {
+        folder = Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder));
+        var folderName = Path.GetFileName(folder);
+        var files = FolderImporter.FindFiles(folder);
+        if (files.Count == 0)
+        {
+            await _dialogs.ShowMessageAsync("Нет данных",
+                $"В папке «{folderName}» нет файлов CSV, Excel, JSON, XML или SQLite.");
+            return;
+        }
+        if (files.Count == 1)
+        {
+            await ImportFileAsync(files[0]);
+            return;
+        }
+
+        var combinable = FolderImporter.FindFiles(folder, combinableOnly: true);
+        var summary = string.Join(", ", files
+            .GroupBy(f => Path.GetExtension(f).TrimStart('.').ToUpperInvariant())
+            .Select(g => $"{g.Key}: {g.Count()}"));
+        var message = $"В папке «{folderName}» найдено файлов: {files.Count} ({summary}).";
+        IReadOnlyList<string> options;
+        if (combinable.Count > 1)
+        {
+            message += "\n\nОбъединение сложит строки всех файлов в одну таблицу по совпадающим столбцам " +
+                       "и добавит столбец «Файл» с именем исходного файла. Кнопка «Обновить» подхватит новые файлы, " +
+                       "появившиеся в папке.";
+            if (combinable.Count < files.Count)
+                message += " Базы SQLite в объединение не входят.";
+            options = ["Объединить в одну таблицу", "Каждый файл — отдельная таблица"];
+        }
+        else
+        {
+            options = ["Каждый файл — отдельная таблица"];
+        }
+
+        var choice = await _dialogs.ChooseAsync("Данные из папки", message, options);
+        if (choice < 0)
+            return;
+        if (combinable.Count > 1 && choice == 0)
+        {
+            await AddSourcesAsync(folderName,
+                [new DataSourceDefinition { Kind = SourceKind.Folder, Path = folder, TableName = folderName }]);
+            return;
+        }
+        foreach (var file in files)
+            await ImportFileAsync(file);
+    }
+
+    /// <summary>Загружает источники в модель и показывает результат на странице «Данные».</summary>
+    private async Task AddSourcesAsync(string displayName, IReadOnlyList<DataSourceDefinition> sources)
+    {
+        if (sources.Count == 0)
+            return;
+        var names = new List<string>();
+        try
+        {
+            IsBusy = true;
+            Status = $"Загрузка {displayName}…";
+            foreach (var source in sources)
+            {
+                source.TableName = Model.UniqueTableName(source.TableName);
                 var table = await Task.Run(() => ImporterFactory.Load(source));
                 Model.AddSource(source, table);
                 names.Add(source.TableName);
-            }
-
-            if (names.Count > 0)
-            {
-                Status = $"Загружено: {string.Join(", ", names)}";
-                Data.SelectTable(names[^1]);
-                if (Report.IsEmpty)
-                    CurrentPage = Data;
-            }
-            else
-            {
-                Status = "Готово";
             }
         }
         catch (Exception e)
         {
             Status = "Ошибка загрузки";
-            await _dialogs.ShowMessageAsync("Не удалось загрузить данные", $"{Path.GetFileName(path)}: {e.Message}");
+            await _dialogs.ShowMessageAsync("Не удалось загрузить данные", $"{displayName}: {e.Message}");
         }
         finally
         {
             IsBusy = false;
         }
-        return names;
+
+        if (names.Count > 0)
+        {
+            Status = $"Загружено: {string.Join(", ", names)}";
+            Data.SelectTable(names[^1]);
+            if (Report.IsEmpty)
+                CurrentPage = Data;
+        }
     }
 
     [RelayCommand]
@@ -161,9 +245,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private async Task OpenReportAsync()
     {
-        var paths = await _dialogs.OpenFilesAsync("Открыть отчёт", [ReportFilter], allowMultiple: false);
-        if (paths.Count > 0)
-            await OpenReportFileAsync(paths[0]);
+        // Открыть можно и отчёт, и файлы данных; папки — через «Получить данные → Папка…».
+        var paths = await _dialogs.OpenFilesAsync("Открыть отчёт или данные",
+            [new FileTypeFilter("Отчёты и данные", [ReportSerializer.Extension, .. ImporterFactory.SupportedExtensions]), ReportFilter, .. DataFilters],
+            allowMultiple: true);
+        foreach (var path in paths)
+            await OpenPathAsync(path);
     }
 
     [RelayCommand]

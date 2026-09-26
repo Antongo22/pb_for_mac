@@ -15,7 +15,10 @@ public sealed class VisualKindItem(VisualKind kind, string label, string iconPat
 {
     public VisualKind Kind { get; } = kind;
     public string Label { get; } = label;
-    public Geometry Icon { get; } = StreamGeometry.Parse(iconPath);
+    private Geometry? _icon;
+
+    // Разбирается при первом обращении из разметки, чтобы view-модели создавались и без платформы Avalonia (в тестах).
+    public Geometry Icon => _icon ??= StreamGeometry.Parse(iconPath);
 
     public void Add() => add(Kind);
 }
@@ -26,10 +29,12 @@ public sealed partial class ReportViewModel : ViewModelBase
     private const double Margin = 20;
     private const double Snap = 10;
 
-    public ReportViewModel(DataModel model, IRelayCommand importCommand, IRelayCommand openSampleCommand)
+    public ReportViewModel(DataModel model, IRelayCommand importCommand, IRelayCommand importFolderCommand,
+        IRelayCommand openSampleCommand)
     {
         Model = model;
         ImportCommand = importCommand;
+        ImportFolderCommand = importFolderCommand;
         OpenSampleCommand = openSampleCommand;
         _selectedOperator = Labels.FilterOperators[0];
         Visuals.CollectionChanged += (_, _) =>
@@ -63,6 +68,7 @@ public sealed partial class ReportViewModel : ViewModelBase
 
     public DataModel Model { get; }
     public IRelayCommand ImportCommand { get; }
+    public IRelayCommand ImportFolderCommand { get; }
     public IRelayCommand OpenSampleCommand { get; }
     public IReadOnlyList<VisualKindItem> VisualKinds { get; }
     public ObservableCollection<VisualViewModel> Visuals { get; } = [];

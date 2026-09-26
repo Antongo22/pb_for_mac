@@ -19,6 +19,16 @@ public sealed class DialogService(Window owner) : IDialogService
         return files.Select(f => f.TryGetLocalPath()).OfType<string>().ToList();
     }
 
+    public async Task<string?> OpenFolderAsync(string title)
+    {
+        var folders = await owner.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = false,
+        });
+        return folders.Select(f => f.TryGetLocalPath()).OfType<string>().FirstOrDefault();
+    }
+
     public async Task<string?> SaveFileAsync(string title, string suggestedName, FileTypeFilter filter)
     {
         var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
@@ -34,6 +44,10 @@ public sealed class DialogService(Window owner) : IDialogService
 
     public Task<IReadOnlyList<string>?> SelectItemsAsync(string title, string message, IReadOnlyList<string> items) =>
         new SelectItemsWindow(title, message, items).ShowDialog<IReadOnlyList<string>?>(owner);
+
+    // Закрытие окна крестиком или Esc даёт null — это отмена.
+    public async Task<int> ChooseAsync(string title, string message, IReadOnlyList<string> options) =>
+        await new ChoiceWindow(title, message, options).ShowDialog<int?>(owner) ?? -1;
 
     public Task ShowMessageAsync(string title, string message) =>
         new MessageWindow(title, message, confirm: false).ShowDialog<bool>(owner);

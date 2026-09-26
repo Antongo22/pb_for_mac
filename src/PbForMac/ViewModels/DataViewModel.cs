@@ -15,16 +15,18 @@ public sealed partial class DataViewModel : ViewModelBase
     private readonly IDialogService _dialogs;
     private List<DataRow> _visibleRows = [];
 
-    public DataViewModel(DataModel model, IDialogService dialogs, IRelayCommand importCommand)
+    public DataViewModel(DataModel model, IDialogService dialogs, IRelayCommand importCommand, IRelayCommand importFolderCommand)
     {
         _model = model;
         _dialogs = dialogs;
         ImportCommand = importCommand;
+        ImportFolderCommand = importFolderCommand;
         _selectedOperator = Labels.FilterOperators[0];
         _model.Changed += (_, _) => OnModelChanged();
     }
 
     public IRelayCommand ImportCommand { get; }
+    public IRelayCommand ImportFolderCommand { get; }
     public ObservableCollection<TableItem> Tables { get; } = [];
     public ObservableCollection<string> Columns { get; } = [];
     public ObservableCollection<FilterItemViewModel> Filters { get; } = [];
