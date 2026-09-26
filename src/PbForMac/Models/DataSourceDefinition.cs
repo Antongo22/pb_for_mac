@@ -7,6 +7,7 @@ public enum SourceKind
     Json,
     Xml,
     Sqlite,
+    Folder,
 }
 
 /// <summary>Описание источника данных: откуда и что загружать в таблицу модели.</summary>
@@ -14,7 +15,7 @@ public sealed class DataSourceDefinition
 {
     public SourceKind Kind { get; set; }
 
-    /// <summary>Абсолютный путь к файлу.</summary>
+    /// <summary>Абсолютный путь к файлу или папке.</summary>
     public string Path { get; set; } = "";
 
     /// <summary>Путь относительно файла отчёта (заполняется при сохранении).</summary>

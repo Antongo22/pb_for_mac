@@ -39,7 +39,7 @@ public static class ReportSerializer
             if (source.RelativePath is null)
                 continue;
             var relative = Path.GetFullPath(Path.Combine(directory, source.RelativePath));
-            if (File.Exists(relative) || !File.Exists(source.Path))
+            if (Path.Exists(relative) || !Path.Exists(source.Path))
                 source.Path = relative;
         }
         return report;

@@ -20,10 +20,12 @@ public static class ImporterFactory
 
     public static IReadOnlyCollection<string> SupportedExtensions => ExtensionMap.Keys;
 
+    public static bool IsSupported(string path) => ExtensionMap.ContainsKey(Path.GetExtension(path));
+
     public static SourceKind KindFor(string path) =>
-        ExtensionMap.TryGetValue(Path.GetExtension(path), out var kind)
-            ? kind
-            : throw new NotSupportedException($"Формат файла «{Path.GetExtension(path)}» не поддерживается.");
+        Directory.Exists(path) ? SourceKind.Folder
+        : ExtensionMap.TryGetValue(Path.GetExtension(path), out var kind) ? kind
+        : throw new NotSupportedException($"Формат файла «{Path.GetExtension(path)}» не поддерживается.");
 
     public static IDataImporter Create(SourceKind kind) => kind switch
     {
@@ -32,6 +34,7 @@ public static class ImporterFactory
         SourceKind.Json => new JsonImporter(),
         SourceKind.Xml => new XmlImporter(),
         SourceKind.Sqlite => new SqliteImporter(),
+        SourceKind.Folder => new FolderImporter(),
         _ => throw new ArgumentOutOfRangeException(nameof(kind)),
     };
 
