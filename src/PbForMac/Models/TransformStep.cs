@@ -15,6 +15,8 @@ namespace PbForMac.Models;
 [JsonDerivedType(typeof(ChangeTypeStep), "changeType")]
 [JsonDerivedType(typeof(CalculatedColumnStep), "calculated")]
 [JsonDerivedType(typeof(FilterRowsStep), "filter")]
+[JsonDerivedType(typeof(RemoveRowsStep), "removeRows")]
+[JsonDerivedType(typeof(KeepRowsStep), "keepRows")]
 [JsonDerivedType(typeof(RemoveDuplicatesStep), "distinct")]
 [JsonDerivedType(typeof(GroupByStep), "groupBy")]
 public abstract class TransformStep
@@ -83,6 +85,27 @@ public sealed class FilterRowsStep : TransformStep
 {
     public FilterDefinition Filter { get; set; } = new();
     public override string Description => $"Фильтр строк: {Labels.Describe(Filter)}";
+}
+
+/// <summary>
+/// Удаляет строки по отпечатку значений (все столбцы). При обновлении данных
+/// удаляются строки с теми же значениями.
+/// </summary>
+public sealed class RemoveRowsStep : TransformStep
+{
+    public List<string> RowKeys { get; set; } = [];
+    public override string Description => RowKeys.Count == 1
+        ? "Удалена 1 строка"
+        : $"Удалены строки ({RowKeys.Count})";
+}
+
+/// <summary>Оставляет только строки с указанными отпечатками.</summary>
+public sealed class KeepRowsStep : TransformStep
+{
+    public List<string> RowKeys { get; set; } = [];
+    public override string Description => RowKeys.Count == 1
+        ? "Оставлена 1 строка"
+        : $"Оставлены строки ({RowKeys.Count})";
 }
 
 public sealed class RemoveDuplicatesStep : TransformStep

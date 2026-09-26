@@ -124,6 +124,24 @@ public class TransformTests
     }
 
     [Fact]
+    public void RemoveAndKeepRows_ByFingerprint()
+    {
+        var tables = Tables();
+        var table = tables[0];
+        var first = TransformEngine.RowKey(table.Rows[0]);
+        var second = TransformEngine.RowKey(table.Rows[1]);
+
+        TransformEngine.Apply(tables, new RemoveRowsStep { Table = "Продажи", RowKeys = [first] });
+        Assert.DoesNotContain(table.Rows.Cast<DataRow>(), r => TransformEngine.RowKey(r) == first);
+
+        var before = table.Rows.Count;
+        TransformEngine.Apply(tables, new KeepRowsStep { Table = "Продажи", RowKeys = [second] });
+        Assert.Equal(1, table.Rows.Count);
+        Assert.Equal(second, TransformEngine.RowKey(table.Rows[0]));
+        Assert.True(before > 1);
+    }
+
+    [Fact]
     public void ReportSerializer_RoundTripsPolymorphicSteps()
     {
         var report = new ReportDefinition
@@ -136,6 +154,8 @@ public class TransformTests
                 new RemoveColumnsStep { Table = "A", Columns = ["a", "b"] },
                 new KeepColumnsStep { Table = "A", Columns = ["x", "S"] },
                 new MoveColumnStep { Table = "A", Column = "x", NewOrdinal = 0 },
+                new RemoveRowsStep { Table = "A", RowKeys = ["k1", "k2"] },
+                new KeepRowsStep { Table = "A", RowKeys = ["k1"] },
             ],
             Visuals = [new VisualDefinition { Kind = VisualKind.Pie, Table = "A", ValueFields = ["x"] }],
         };
@@ -147,11 +167,15 @@ public class TransformTests
         Assert.Contains("\"removeColumns\"", json);
         Assert.Contains("\"keepColumns\"", json);
         Assert.Contains("\"moveColumn\"", json);
+        Assert.Contains("\"removeRows\"", json);
+        Assert.Contains("\"keepRows\"", json);
         Assert.IsType<CalculatedColumnStep>(restored.Steps[0]);
         Assert.Equal(["1"], ((FilterRowsStep)restored.Steps[1]).Filter.Values);
         Assert.Equal(["a", "b"], ((RemoveColumnsStep)restored.Steps[2]).Columns);
         Assert.Equal(["x", "S"], ((KeepColumnsStep)restored.Steps[3]).Columns);
         Assert.Equal(0, ((MoveColumnStep)restored.Steps[4]).NewOrdinal);
+        Assert.Equal(["k1", "k2"], ((RemoveRowsStep)restored.Steps[5]).RowKeys);
+        Assert.Equal(["k1"], ((KeepRowsStep)restored.Steps[6]).RowKeys);
         Assert.Equal(VisualKind.Pie, restored.Visuals[0].Kind);
     }
 }

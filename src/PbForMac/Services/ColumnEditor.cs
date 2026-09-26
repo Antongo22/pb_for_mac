@@ -123,6 +123,53 @@ public sealed class ColumnEditor(DataModel model, IDialogService dialogs)
         }
     }
 
+    public async Task<bool> RemoveRowsAsync(string table, IReadOnlyList<DataRow> rows)
+    {
+        if (rows.Count == 0)
+            return false;
+        var keys = rows.Select(TransformEngine.RowKey).Distinct().ToList();
+        var label = keys.Count == 1 ? "Удалить 1 строку?" : $"Удалить строки ({keys.Count})?";
+        if (!await dialogs.ConfirmAsync("Удалить строки", label))
+            return false;
+        try
+        {
+            model.AddStep(new RemoveRowsStep { Table = table, RowKeys = keys });
+            return true;
+        }
+        catch (InvalidOperationException e)
+        {
+            await dialogs.ShowMessageAsync("Не удалось удалить строки", e.Message);
+            return false;
+        }
+    }
+
+    public async Task<bool> KeepRowsAsync(string table, IReadOnlyList<DataRow> rows)
+    {
+        if (rows.Count == 0)
+            return false;
+        var keys = rows.Select(TransformEngine.RowKey).Distinct().ToList();
+        var data = model.GetTable(table);
+        if (data is null)
+            return false;
+        if (keys.Count >= data.Rows.Count)
+            return false;
+        var label = keys.Count == 1
+            ? "Оставить только 1 выбранную строку? Остальные будут удалены."
+            : $"Оставить только выбранные строки ({keys.Count})? Остальные будут удалены.";
+        if (!await dialogs.ConfirmAsync("Оставить выбранные строки", label))
+            return false;
+        try
+        {
+            model.AddStep(new KeepRowsStep { Table = table, RowKeys = keys });
+            return true;
+        }
+        catch (InvalidOperationException e)
+        {
+            await dialogs.ShowMessageAsync("Не удалось оставить строки", e.Message);
+            return false;
+        }
+    }
+
     public int? Ordinal(string table, string column) =>
         model.GetTable(table)?.Columns[column]?.Ordinal;
 

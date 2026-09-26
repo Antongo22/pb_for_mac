@@ -53,11 +53,19 @@ public static class TransformEngine
                     table.Rows.Remove(row);
                 break;
 
+            case RemoveRowsStep s:
+                RemoveRowsByKeys(table, s.RowKeys, keep: false);
+                break;
+
+            case KeepRowsStep s:
+                RemoveRowsByKeys(table, s.RowKeys, keep: true);
+                break;
+
             case RemoveDuplicatesStep:
                 var seen = new HashSet<string>();
                 foreach (var row in table.Rows.Cast<DataRow>().ToList())
                 {
-                    if (!seen.Add(string.Join("\u001F", row.ItemArray.Select(QueryEngine.Key))))
+                    if (!seen.Add(RowKey(row)))
                         table.Rows.Remove(row);
                 }
                 break;
@@ -75,6 +83,22 @@ public static class TransformEngine
         }
 
         table.AcceptChanges();
+    }
+
+    public static string RowKey(DataRow row) =>
+        string.Join("\u001F", row.ItemArray.Select(QueryEngine.Key));
+
+    public static void RemoveRowsByKeys(DataTable table, IReadOnlyList<string> keys, bool keep)
+    {
+        if (keys.Count == 0)
+            throw new InvalidOperationException(keep ? "Не выбраны строки, которые нужно оставить." : "Не выбраны строки для удаления.");
+        var set = new HashSet<string>(keys);
+        foreach (var row in table.Rows.Cast<DataRow>().ToList())
+        {
+            var match = set.Contains(RowKey(row));
+            if (keep ? !match : match)
+                table.Rows.Remove(row);
+        }
     }
 
     public static void RemoveColumns(DataTable table, IReadOnlyList<string> columns)

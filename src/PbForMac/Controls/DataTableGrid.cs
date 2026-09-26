@@ -44,7 +44,7 @@ public interface IColumnHeaderActions
 /// <summary>
 /// DataGrid для произвольной <see cref="DataTable"/>: столбцы генерируются по схеме,
 /// сортировка выполняется по исходным (типизированным) значениям.
-/// ПКМ по заголовку — контекстное меню столбца (как в Power BI / Power Query).
+/// ПКМ по заголовку — меню столбца; ПКМ по строке / Delete — удаление строк.
 /// </summary>
 public sealed class DataTableGrid : UserControl
 {
@@ -64,6 +64,7 @@ public sealed class DataTableGrid : UserControl
         HeadersVisibility = DataGridHeadersVisibility.Column,
         SelectionMode = DataGridSelectionMode.Extended,
         ClipboardCopyMode = DataGridClipboardCopyMode.IncludeHeader,
+        Focusable = true,
     };
 
     private int _sortColumn = -1;
@@ -74,6 +75,7 @@ public sealed class DataTableGrid : UserControl
         Content = _grid;
         _grid.Sorting += OnSorting;
         _grid.AddHandler(ContextRequestedEvent, OnContextRequested, RoutingStrategies.Tunnel);
+        _grid.KeyDown += OnKeyDown;
     }
 
     public TableSlice? Source
@@ -154,22 +156,62 @@ public sealed class DataTableGrid : UserControl
         Rebuild(schemaChanged: false);
     }
 
+    private void OnKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key is not (Key.Delete or Key.Back))
+            return;
+        if (ColumnActions is not { CanEdit: true, TableName: { } table, Editor: { } editor })
+            return;
+        var rows = SelectedRows();
+        if (rows.Count == 0)
+            return;
+        e.Handled = true;
+        _ = editor.RemoveRowsAsync(table, rows);
+    }
+
     private void OnContextRequested(object? sender, ContextRequestedEventArgs e)
     {
         if (e.Source is not Visual source)
             return;
+
         var header = source.FindAncestorOfType<DataGridColumnHeader>(includeSelf: true);
-        if (header is null || ResolveColumnName(header) is not { } columnName)
+        if (header is not null)
+        {
+            if (ResolveColumnName(header) is not { } columnName)
+                return;
+            ColumnActions?.SelectColumn(columnName);
+            var columnMenu = BuildColumnMenu(columnName);
+            if (columnMenu.Items.Count == 0)
+                return;
+            e.Handled = true;
+            columnMenu.Open(header);
+            return;
+        }
+
+        var row = source.FindAncestorOfType<DataGridRow>(includeSelf: true);
+        if (row is null)
             return;
 
-        ColumnActions?.SelectColumn(columnName);
-        var menu = BuildMenu(columnName);
+        // ПКМ по невыделенной строке — выделить только её.
+        if (row.DataContext is RowItem item && !_grid.SelectedItems.Contains(item))
+        {
+            _grid.SelectedItems.Clear();
+            _grid.SelectedItems.Add(item);
+        }
+
+        var rows = SelectedRows();
+        if (rows.Count == 0)
+            return;
+
+        var menu = BuildRowMenu(rows);
         if (menu.Items.Count == 0)
             return;
-
         e.Handled = true;
-        menu.Open(header);
+        menu.Open(row);
     }
+
+    private List<DataRow> SelectedRows() =>
+        _grid.SelectedItems.OfType<RowItem>().Select(r => r.Row).ToList();
 
     /// <summary>Имя столбца по заголовку: Content совпадает с Tag или «Tag ▲/▼».</summary>
     private string? ResolveColumnName(DataGridColumnHeader header)
@@ -185,7 +227,7 @@ public sealed class DataTableGrid : UserControl
         return null;
     }
 
-    private ContextMenu BuildMenu(string column)
+    private ContextMenu BuildColumnMenu(string column)
     {
         var menu = new ContextMenu();
         var actions = ColumnActions;
@@ -236,6 +278,20 @@ public sealed class DataTableGrid : UserControl
             }
         }
 
+        return menu;
+    }
+
+    private ContextMenu BuildRowMenu(IReadOnlyList<DataRow> rows)
+    {
+        var menu = new ContextMenu();
+        var label = rows.Count == 1 ? "Удалить строку" : $"Удалить строки ({rows.Count})";
+        var keepLabel = rows.Count == 1 ? "Оставить только эту строку" : $"Оставить только выбранные ({rows.Count})";
+
+        if (ColumnActions is not { CanEdit: true, TableName: { } table, Editor: { } editor })
+            return menu;
+
+        menu.Items.Add(Item(label, () => editor.RemoveRowsAsync(table, rows)));
+        menu.Items.Add(Item(keepLabel, () => editor.KeepRowsAsync(table, rows)));
         return menu;
     }
 
