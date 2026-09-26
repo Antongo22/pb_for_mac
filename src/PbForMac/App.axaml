@@ -23,6 +23,10 @@
           <SolidColorBrush x:Key="ErrorBrush" Color="#A4262C" />
           <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#FDE7E9" />
           <SolidColorBrush x:Key="InfoBackgroundBrush" Color="#E6F2FB" />
+          <SolidColorBrush x:Key="RailBrush" Color="#F7F7F7" />
+          <SolidColorBrush x:Key="RailHoverBrush" Color="#EDEBE9" />
+          <SolidColorBrush x:Key="RailForegroundBrush" Color="#605E5C" />
+          <SolidColorBrush x:Key="RailActiveForegroundBrush" Color="#201F1E" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
           <SolidColorBrush x:Key="WorkspaceBrush" Color="#161514" />
@@ -35,11 +39,13 @@
           <SolidColorBrush x:Key="ErrorBrush" Color="#F1707B" />
           <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#442726" />
           <SolidColorBrush x:Key="InfoBackgroundBrush" Color="#1F3347" />
+          <SolidColorBrush x:Key="RailBrush" Color="#252423" />
+          <SolidColorBrush x:Key="RailHoverBrush" Color="#3B3A39" />
+          <SolidColorBrush x:Key="RailForegroundBrush" Color="#C8C6C4" />
+          <SolidColorBrush x:Key="RailActiveForegroundBrush" Color="#FFFFFF" />
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
 
-      <SolidColorBrush x:Key="RailBrush" Color="#252423" />
-      <SolidColorBrush x:Key="RailHoverBrush" Color="#3B3A39" />
       <SolidColorBrush x:Key="BrandBrush" Color="#F2C811" />
       <SolidColorBrush x:Key="SelectionBrush" Color="#118DFF" />
 

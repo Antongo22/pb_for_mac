@@ -138,26 +138,29 @@
     </Border>
 
     <!-- Навигация -->
-    <StackPanel Grid.Row="1" Grid.RowSpan="2" Background="{StaticResource RailBrush}">
-      <Button Classes="nav" Classes.active="{Binding IsReportPage}" Command="{Binding ShowReportCommand}" ToolTip.Tip="Отчёт">
-        <StackPanel Spacing="3">
-          <PathIcon Data="{StaticResource IconReport}" Width="20" Height="20" />
-          <TextBlock Text="Отчёт" />
-        </StackPanel>
-      </Button>
-      <Button Classes="nav" Classes.active="{Binding IsDataPage}" Command="{Binding ShowDataCommand}" ToolTip.Tip="Данные">
-        <StackPanel Spacing="3">
-          <PathIcon Data="{StaticResource IconData}" Width="20" Height="20" />
-          <TextBlock Text="Данные" />
-        </StackPanel>
-      </Button>
-      <Button Classes="nav" Classes.active="{Binding IsModelPage}" Command="{Binding ShowModelCommand}" ToolTip.Tip="Модель">
-        <StackPanel Spacing="3">
-          <PathIcon Data="{StaticResource IconModel}" Width="20" Height="20" />
-          <TextBlock Text="Модель" />
-        </StackPanel>
-      </Button>
-    </StackPanel>
+    <Border Grid.Row="1" Grid.RowSpan="2" Background="{DynamicResource RailBrush}"
+            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,1,0">
+      <StackPanel>
+        <Button Classes="nav" Classes.active="{Binding IsReportPage}" Command="{Binding ShowReportCommand}" ToolTip.Tip="Отчёт">
+          <StackPanel Spacing="3">
+            <PathIcon Data="{StaticResource IconReport}" Width="20" Height="20" />
+            <TextBlock Text="Отчёт" />
+          </StackPanel>
+        </Button>
+        <Button Classes="nav" Classes.active="{Binding IsDataPage}" Command="{Binding ShowDataCommand}" ToolTip.Tip="Данные">
+          <StackPanel Spacing="3">
+            <PathIcon Data="{StaticResource IconData}" Width="20" Height="20" />
+            <TextBlock Text="Данные" />
+          </StackPanel>
+        </Button>
+        <Button Classes="nav" Classes.active="{Binding IsModelPage}" Command="{Binding ShowModelCommand}" ToolTip.Tip="Модель">
+          <StackPanel Spacing="3">
+            <PathIcon Data="{StaticResource IconModel}" Width="20" Height="20" />
+            <TextBlock Text="Модель" />
+          </StackPanel>
+        </Button>
+      </StackPanel>
+    </Border>
 
     <!-- Текущая страница -->
     <ContentControl Grid.Row="1" Grid.Column="1" Content="{Binding CurrentPage}" />
