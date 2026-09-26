@@ -253,7 +253,7 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
 
         DiagramHint = DiagramTables.Count == 0
             ? null
-            : "Перетаскивайте карточки за заголовок · Ctrl+колёсико — масштаб · Alt+перетаскивание или средняя кнопка — панорама. Клик по столбцу факта, затем по столбцу справочника — новая связь.";
+            : "Перетаскивайте карточки · масштаб: сведение пальцев на тачпаде или Ctrl/⌘+скролл · Alt/средняя кнопка — панорама.";
     }
 
     private void SaveDiagramPosition(DiagramTableViewModel table, double x, double y) =>

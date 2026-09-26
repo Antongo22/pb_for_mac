@@ -83,7 +83,15 @@ public sealed class RelationshipDiagram : UserControl
             _dragTable = null;
             _panning = false;
         };
+        Focusable = true;
         AddHandler(PointerWheelChangedEvent, OnWheel, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+        // macOS trackpad pinch → PointerTouchPadGestureMagnify (не PinchGestureRecognizer — тот для touch).
+        AddHandler(Gestures.PointerTouchPadGestureMagnifyEvent, OnTrackpadMagnify,
+            Avalonia.Interactivity.RoutingStrategies.Tunnel | Avalonia.Interactivity.RoutingStrategies.Bubble,
+            handledEventsToo: true);
+        _scroll.AddHandler(Gestures.PointerTouchPadGestureMagnifyEvent, OnTrackpadMagnify,
+            Avalonia.Interactivity.RoutingStrategies.Tunnel | Avalonia.Interactivity.RoutingStrategies.Bubble,
+            handledEventsToo: true);
         _scroll.PointerPressed += OnScrollPointerPressed;
         ActualThemeVariantChanged += (_, _) =>
         {
@@ -216,10 +224,24 @@ public sealed class RelationshipDiagram : UserControl
 
     private void OnWheel(object? sender, PointerWheelEventArgs e)
     {
-        if (!e.KeyModifiers.HasFlag(KeyModifiers.Control) && !e.KeyModifiers.HasFlag(KeyModifiers.Meta))
+        // Ctrl/⌘/Shift + скролл (мышь или тачпад).
+        var zoomMods = KeyModifiers.Control | KeyModifiers.Meta | KeyModifiers.Shift;
+        if ((e.KeyModifiers & zoomMods) == 0)
             return;
         e.Handled = true;
-        ZoomBy(e.Delta.Y > 0 ? ZoomStep : -ZoomStep);
+        var factor = Math.Clamp(1 + e.Delta.Y * 0.12, 0.85, 1.15);
+        Zoom = Math.Round(Zoom * factor * 100) / 100;
+    }
+
+    /// <summary>Сведение пальцев на тачпаде macOS (<see cref="Gestures.PointerTouchPadGestureMagnifyEvent"/>).</summary>
+    private void OnTrackpadMagnify(object? sender, PointerDeltaEventArgs e)
+    {
+        // Delta — шаг magnification от системы (обычно ±0.01…0.1).
+        var delta = e.Delta.X != 0 ? e.Delta.X : e.Delta.Y;
+        if (delta == 0)
+            return;
+        Zoom = Math.Round(Zoom * (1 + delta) * 100) / 100;
+        e.Handled = true;
     }
 
     private void OnTablesChanged(object? sender, NotifyCollectionChangedEventArgs e)
