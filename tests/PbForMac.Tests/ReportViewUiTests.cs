@@ -17,11 +17,12 @@ namespace PbForMac.Tests;
 /// <summary>Клики мышью по плиткам дашборда в настоящем ReportView (Avalonia.Headless).</summary>
 public class ReportViewUiTests
 {
-    private static (Window Window, ReportViewModel Report) ShowReport(VisualKind kind)
+    private static (Window Window, ReportViewModel Report) ShowReport(VisualKind kind, NoDialogs? dialogs = null)
     {
         var model = new DataModel();
         model.AddSource(new DataSourceDefinition { TableName = "Продажи" }, TestData.Sales());
-        var report = new ReportViewModel(model, new RelayCommand(() => { }), new RelayCommand(() => { }), new RelayCommand(() => { }));
+        var report = new ReportViewModel(model, dialogs ?? new NoDialogs(),
+            new RelayCommand(() => { }), new RelayCommand(() => { }), new RelayCommand(() => { }));
         report.VisualKinds.First(k => k.Kind == kind).Add();
 
         var window = new Window { Width = 1400, Height = 900, Content = new ReportView { DataContext = report } };
@@ -87,7 +88,14 @@ public class ReportViewUiTests
         public Task<IReadOnlyList<string>?> SelectItemsAsync(string t, string m, IReadOnlyList<string> i) => Task.FromResult<IReadOnlyList<string>?>(null);
         public Task<int> ChooseAsync(string t, string m, IReadOnlyList<string> o) => Task.FromResult(-1);
         public Task ShowMessageAsync(string t, string m) => Task.CompletedTask;
-        public Task<bool> ConfirmAsync(string t, string m) => Task.FromResult(true);
+        public bool ConfirmResult { get; init; } = true;
+        public List<string> Confirmations { get; } = [];
+
+        public Task<bool> ConfirmAsync(string t, string m)
+        {
+            Confirmations.Add(m);
+            return Task.FromResult(ConfirmResult);
+        }
     }
 
     [AvaloniaFact]
@@ -98,6 +106,49 @@ public class ReportViewUiTests
         Click(window, TileButton(window, "Удалить"));
 
         Assert.Empty(report.Visuals);
+    }
+
+    [AvaloniaFact]
+    public void DeleteButtonOnTile_AsksAndKeepsVisualWhenDeclined()
+    {
+        var dialogs = new NoDialogs { ConfirmResult = false };
+        var (window, report) = ShowReport(VisualKind.Card, dialogs);
+
+        Click(window, TileButton(window, "Удалить"));
+
+        Assert.Single(report.Visuals);
+        var question = Assert.Single(dialogs.Confirmations);
+        Assert.Contains(report.Visuals[0].DisplayTitle, question);
+    }
+
+    [AvaloniaFact]
+    public void DeleteKey_AsksAndKeepsVisualWhenDeclined()
+    {
+        var dialogs = new NoDialogs { ConfirmResult = false };
+        var (window, report) = ShowReport(VisualKind.Card, dialogs);
+
+        Click(window, window.GetVisualDescendants().OfType<VisualTileView>().Single());
+        window.KeyPress(Key.Delete, RawInputModifiers.None, PhysicalKey.Delete, null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Single(report.Visuals);
+        Assert.Single(dialogs.Confirmations);
+    }
+
+    [AvaloniaFact]
+    public void DeleteButtonInFieldsPane_AsksBeforeDeleting()
+    {
+        var dialogs = new NoDialogs();
+        var (window, report) = ShowReport(VisualKind.Card, dialogs);
+        var paneButton = window.GetVisualDescendants().OfType<ReportView>().Single()
+            .GetVisualDescendants().OfType<Button>()
+            .Where(b => b.FindAncestorOfType<VisualTileView>() is null)
+            .Single(b => b.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == "Удалить"));
+
+        Click(window, paneButton);
+
+        Assert.Empty(report.Visuals);
+        Assert.Single(dialogs.Confirmations);
     }
 
     [AvaloniaFact]

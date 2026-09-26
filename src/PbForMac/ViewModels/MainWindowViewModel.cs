@@ -30,9 +30,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _theme = theme;
         _settings = settings;
         _theme.Changed += (_, _) => OnPropertyChanged(nameof(IsDarkTheme));
-        Report = new ReportViewModel(Model, ImportCommand, ImportFolderCommand, OpenSampleCommand);
+        Report = new ReportViewModel(Model, dialogs, ImportCommand, ImportFolderCommand, OpenSampleCommand);
         Data = new DataViewModel(Model, dialogs, ImportCommand, ImportFolderCommand);
-        Transform = new TransformViewModel(Model);
+        Transform = new TransformViewModel(Model, dialogs);
         _currentPage = Report;
     }
 

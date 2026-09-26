@@ -161,7 +161,7 @@
                         <TextBlock Text="Дублировать" />
                       </StackPanel>
                     </Button>
-                    <Button Command="{Binding Delete}">
+                    <Button Command="{Binding DeleteCommand}">
                       <StackPanel Orientation="Horizontal" Spacing="6">
                         <PathIcon Data="{StaticResource IconDelete}" Width="12" Height="12" />
                         <TextBlock Text="Удалить" />

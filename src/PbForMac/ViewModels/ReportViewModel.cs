@@ -29,10 +29,13 @@ public sealed partial class ReportViewModel : ViewModelBase
     private const double Margin = 20;
     private const double Snap = 10;
 
-    public ReportViewModel(DataModel model, IRelayCommand importCommand, IRelayCommand importFolderCommand,
+    private readonly IDialogService _dialogs;
+
+    public ReportViewModel(DataModel model, IDialogService dialogs, IRelayCommand importCommand, IRelayCommand importFolderCommand,
         IRelayCommand openSampleCommand)
     {
         Model = model;
+        _dialogs = dialogs;
         ImportCommand = importCommand;
         ImportFolderCommand = importFolderCommand;
         OpenSampleCommand = openSampleCommand;
@@ -196,7 +199,18 @@ public sealed partial class ReportViewModel : ViewModelBase
     [RelayCommand]
     private void ClearSelection() => SelectedVisual = null;
 
-    public void Delete(VisualViewModel visual)
+    /// <summary>Удаляет визуал с дашборда после подтверждения пользователя.</summary>
+    public async Task DeleteAsync(VisualViewModel visual)
+    {
+        if (!Visuals.Contains(visual))
+            return;
+        if (!await _dialogs.ConfirmAsync("Удалить визуал",
+                $"Удалить «{visual.DisplayTitle}» ({visual.KindLabel.ToLowerInvariant()}) с дашборда?"))
+            return;
+        Remove(visual);
+    }
+
+    private void Remove(VisualViewModel visual)
     {
         visual.PropertyChanged -= OnVisualPropertyChanged;
         Visuals.Remove(visual);
@@ -207,11 +221,8 @@ public sealed partial class ReportViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void DeleteSelected()
-    {
-        if (SelectedVisual is not null)
-            Delete(SelectedVisual);
-    }
+    private Task DeleteSelectedAsync() =>
+        SelectedVisual is null ? Task.CompletedTask : DeleteAsync(SelectedVisual);
 
     public void Duplicate(VisualViewModel visual)
     {

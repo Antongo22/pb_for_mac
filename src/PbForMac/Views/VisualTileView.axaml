@@ -15,7 +15,7 @@
           <Button Classes="icon" Command="{Binding Duplicate}" ToolTip.Tip="Дублировать">
             <PathIcon Data="{StaticResource IconCopy}" />
           </Button>
-          <Button Classes="icon" Command="{Binding Delete}" ToolTip.Tip="Удалить">
+          <Button Classes="icon" Command="{Binding DeleteCommand}" ToolTip.Tip="Удалить">
             <PathIcon Data="{StaticResource IconDelete}" />
           </Button>
         </StackPanel>

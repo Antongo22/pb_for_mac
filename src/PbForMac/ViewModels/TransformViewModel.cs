@@ -14,9 +14,12 @@ public sealed partial class TransformViewModel : ViewModelBase
     private const int PreviewRows = 500;
     private readonly DataModel _model;
 
-    public TransformViewModel(DataModel model)
+    private readonly IDialogService _dialogs;
+
+    public TransformViewModel(DataModel model, IDialogService dialogs)
     {
         _model = model;
+        _dialogs = dialogs;
         _targetType = Labels.ColumnTypes[0];
         _selectedOperator = Labels.FilterOperators[0];
         _aggregationKind = Labels.Aggregations[0];
@@ -117,7 +120,7 @@ public sealed partial class TransformViewModel : ViewModelBase
         Steps.Clear();
         var index = 1;
         foreach (var step in _model.Steps)
-            Steps.Add(new StepItemViewModel(index++, step, _model.StepErrors.GetValueOrDefault(step), RemoveStep));
+            Steps.Add(new StepItemViewModel(index++, step, _model.StepErrors.GetValueOrDefault(step), item => _ = RemoveStepAsync(item)));
         OnPropertyChanged(nameof(HasSteps));
     }
 
@@ -290,8 +293,15 @@ public sealed partial class TransformViewModel : ViewModelBase
         }
     }
 
-    private void RemoveStep(StepItemViewModel item)
+    /// <summary>
+    /// Удаляет шаг. Шаг группировки создаёт таблицу — её удаление требует подтверждения.
+    /// </summary>
+    public async Task RemoveStepAsync(StepItemViewModel item)
     {
+        if (item.Step is GroupByStep groupBy && !await _dialogs.ConfirmAsync("Удалить шаг",
+                $"Шаг «{item.Description}» создаёт таблицу «{groupBy.NewTable}». " +
+                "Удалить шаг вместе с этой таблицей? Визуалы и шаги, которые её используют, перестанут работать."))
+            return;
         Error = null;
         Info = $"Удалён шаг: {item.Description}";
         _model.RemoveStep(item.Step);

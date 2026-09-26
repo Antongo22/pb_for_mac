@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using PbForMac.Models;
 using PbForMac.Services;
 
@@ -234,7 +235,9 @@ public abstract partial class VisualViewModel : ViewModelBase
 
     public void Select() => Owner.Select(this);
 
-    public void Delete() => Owner.Delete(this);
+    /// <summary>Удаление с подтверждением (кнопка на плитке и в панели «Поля»).</summary>
+    [RelayCommand]
+    private Task DeleteAsync() => Owner.DeleteAsync(this);
 
     public void Duplicate() => Owner.Duplicate(this);
 }

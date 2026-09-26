@@ -177,6 +177,49 @@ public class MainWindowViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task RemovingTable_AsksAndKeepsItWhenDeclined()
+    {
+        var vm = CreateViewModel();
+        await vm.OpenPathAsync(_files.Write("sales.csv", "Регион,Сумма\nСевер,10\nЮг,20\n"));
+
+        _dialogs.ConfirmResult = false;
+        await vm.Data.RemoveTableCommand.ExecuteAsync(null);
+        Assert.Equal(["sales"], vm.Model.Tables.Select(t => t.TableName));
+
+        _dialogs.ConfirmResult = true;
+        await vm.Data.RemoveTableCommand.ExecuteAsync(null);
+        Assert.Empty(vm.Model.Tables);
+        Assert.Equal(2, _dialogs.ConfirmCount);
+    }
+
+    [Fact]
+    public async Task RemovingGroupByStep_AsksBecauseItDeletesTable_OtherStepsDoNot()
+    {
+        var vm = CreateViewModel();
+        await vm.OpenPathAsync(_files.Write("sales.csv", "Регион,Сумма\nСевер,10\nЮг,20\n"));
+        vm.Model.AddStep(new Models.RenameColumnStep { Table = "sales", Column = "Сумма", NewName = "Выручка" });
+        vm.Model.AddStep(new Models.GroupByStep
+        {
+            Table = "sales", NewTable = "Итоги", GroupColumns = ["Регион"],
+            Aggregations = [new Models.AggregationSpec { Column = "Выручка", Aggregation = Models.Aggregation.Sum }],
+        });
+
+        _dialogs.ConfirmResult = false;
+        await vm.Transform.RemoveStepAsync(vm.Transform.Steps[1]);
+        Assert.NotNull(vm.Model.GetTable("Итоги"));
+        Assert.Equal(1, _dialogs.ConfirmCount);
+
+        await vm.Transform.RemoveStepAsync(vm.Transform.Steps[0]);
+        Assert.Equal(1, _dialogs.ConfirmCount); // обычный шаг удаляется без вопроса
+        Assert.Single(vm.Model.Steps);
+
+        _dialogs.ConfirmResult = true;
+        await vm.Transform.RemoveStepAsync(vm.Transform.Steps[0]);
+        Assert.Null(vm.Model.GetTable("Итоги"));
+        Assert.Empty(vm.Model.Steps);
+    }
+
+    [Fact]
     public async Task OpeningReport_IntoEmptyWindow_DoesNotAsk()
     {
         var reportPath = _files.PathOf("first.pbm");
