@@ -27,6 +27,7 @@ namespace PbForMac.Models;
 [JsonDerivedType(typeof(TextTransformStep), "textTransform")]
 [JsonDerivedType(typeof(AppendTableStep), "appendTable")]
 [JsonDerivedType(typeof(UnpivotColumnsStep), "unpivot")]
+[JsonDerivedType(typeof(MergeTablesStep), "mergeTables")]
 [JsonDerivedType(typeof(GroupByStep), "groupBy")]
 public abstract class TransformStep
 {
@@ -256,6 +257,44 @@ public sealed class UnpivotColumnsStep : TransformStep
         Columns.Count == 0
             ? "Unpivot"
             : $"Unpivot ({Columns.Count}): {string.Join(", ", Columns.Select(c => $"«{c}»"))}";
+}
+
+/// <summary>Вид соединения таблиц (Merge / Join).</summary>
+public enum JoinKind
+{
+    Left,
+    Inner,
+    Full,
+}
+
+/// <summary>
+/// Соединяет текущую таблицу с другой по ключу (как Merge в Power Query).
+/// Столбцы правой таблицы получают уникальные имена при совпадении.
+/// </summary>
+public sealed class MergeTablesStep : TransformStep
+{
+    public string OtherTable { get; set; } = "";
+    public string LeftKey { get; set; } = "";
+    public string RightKey { get; set; } = "";
+    public JoinKind JoinKind { get; set; } = JoinKind.Left;
+
+    /// <summary>Если задано — результат в новую таблицу; иначе — в <see cref="TransformStep.Table"/>.</summary>
+    public string? NewTable { get; set; }
+
+    public override string Description
+    {
+        get
+        {
+            var kind = JoinKind switch
+            {
+                JoinKind.Inner => "внутреннее",
+                JoinKind.Full => "полное",
+                _ => "левое",
+            };
+            var target = string.IsNullOrWhiteSpace(NewTable) ? Table : NewTable;
+            return $"Merge ({kind}): «{Table}»[{LeftKey}] + «{OtherTable}»[{RightKey}] → «{target}»";
+        }
+    }
 }
 
 public sealed class AggregationSpec

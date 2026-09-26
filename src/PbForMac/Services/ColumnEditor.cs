@@ -170,6 +170,29 @@ public sealed class ColumnEditor(DataModel model, IDialogService dialogs)
         }
     }
 
+    public async Task<bool> MergeTablesAsync(string table, string otherTable, string leftKey, string rightKey,
+        JoinKind joinKind, string? newTable)
+    {
+        try
+        {
+            model.AddStep(new MergeTablesStep
+            {
+                Table = table,
+                OtherTable = otherTable,
+                LeftKey = leftKey,
+                RightKey = rightKey,
+                JoinKind = joinKind,
+                NewTable = string.IsNullOrWhiteSpace(newTable) ? null : newTable.Trim(),
+            });
+            return true;
+        }
+        catch (InvalidOperationException e)
+        {
+            await dialogs.ShowMessageAsync("Не удалось выполнить Merge", e.Message);
+            return false;
+        }
+    }
+
     public async Task<bool> UnpivotAsync(string table, IReadOnlyList<string> columns)
     {
         if (columns.Count == 0)

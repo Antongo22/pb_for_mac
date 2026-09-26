@@ -232,16 +232,47 @@
           </TabItem>
 
           <TabItem Header="Объединить таблицы">
-            <StackPanel Spacing="8" MaxWidth="520" HorizontalAlignment="Left">
-              <TextBlock Classes="hint"
-                         Text="Добавить строки другой таблицы в текущую (Append). Столбцы сопоставляются по имени." />
-              <TextBlock Classes="caption" Text="Добавить строки из" />
-              <ComboBox ItemsSource="{Binding Tables}" SelectedItem="{Binding AppendOtherTable}" />
-              <TextBlock Classes="caption" Text="Новая таблица (необязательно)" />
-              <TextBox Text="{Binding AppendNewTable}"
-                       Watermark="Пусто — дописать в текущую таблицу" />
-              <Button Classes="accent" Content="Объединить" Command="{Binding AppendTableCommand}" />
-            </StackPanel>
+            <ScrollViewer>
+              <StackPanel Spacing="12" MaxWidth="520" HorizontalAlignment="Left">
+                <StackPanel Spacing="8">
+                  <TextBlock Classes="caption" Text="Append — добавить строки" FontWeight="SemiBold" />
+                  <TextBlock Classes="hint"
+                             Text="Добавить строки другой таблицы в текущую. Столбцы сопоставляются по имени." />
+                  <TextBlock Classes="caption" Text="Добавить строки из" />
+                  <ComboBox ItemsSource="{Binding Tables}" SelectedItem="{Binding AppendOtherTable}" />
+                  <TextBlock Classes="caption" Text="Новая таблица (необязательно)" />
+                  <TextBox Text="{Binding AppendNewTable}"
+                           Watermark="Пусто — дописать в текущую таблицу" />
+                  <Button Classes="accent" Content="Append" Command="{Binding AppendTableCommand}" HorizontalAlignment="Left" />
+                </StackPanel>
+
+                <Rectangle Height="1" Fill="{DynamicResource DividerBrush}" />
+
+                <StackPanel Spacing="8">
+                  <TextBlock Classes="caption" Text="Merge — соединение по ключу" FontWeight="SemiBold" />
+                  <TextBlock Classes="hint"
+                             Text="Соединить текущую таблицу с другой по ключевому столбцу (левое / внутреннее / полное)." />
+                  <TextBlock Classes="caption" Text="Правая таблица" />
+                  <ComboBox ItemsSource="{Binding Tables}" SelectedItem="{Binding MergeOtherTable}" />
+                  <Grid ColumnDefinitions="*,12,*">
+                    <StackPanel Spacing="4">
+                      <TextBlock Classes="caption" Text="Ключ текущей" />
+                      <ComboBox ItemsSource="{Binding MergeLeftColumns}" SelectedItem="{Binding MergeLeftKey}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="4">
+                      <TextBlock Classes="caption" Text="Ключ правой" />
+                      <ComboBox ItemsSource="{Binding MergeRightColumns}" SelectedItem="{Binding MergeRightKey}" />
+                    </StackPanel>
+                  </Grid>
+                  <TextBlock Classes="caption" Text="Вид соединения" />
+                  <ComboBox ItemsSource="{Binding JoinKinds}" SelectedItem="{Binding MergeJoinKind}" />
+                  <TextBlock Classes="caption" Text="Новая таблица (необязательно)" />
+                  <TextBox Text="{Binding MergeNewTable}"
+                           Watermark="Пусто — записать в текущую таблицу" />
+                  <Button Classes="accent" Content="Merge" Command="{Binding MergeTablesCommand}" HorizontalAlignment="Left" />
+                </StackPanel>
+              </StackPanel>
+            </ScrollViewer>
           </TabItem>
 
           <TabItem Header="Связи">

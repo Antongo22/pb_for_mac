@@ -35,11 +35,21 @@ public sealed class DataModel
         var source = Sources.FirstOrDefault(s => string.Equals(s.TableName, tableName, StringComparison.OrdinalIgnoreCase));
         if (source is not null)
             return source.Group;
-        var creator = Steps.OfType<GroupByStep>()
-            .FirstOrDefault(g => string.Equals(g.NewTable, tableName, StringComparison.OrdinalIgnoreCase));
-        return creator is null || string.Equals(creator.Table, tableName, StringComparison.OrdinalIgnoreCase)
+
+        string? parent = null;
+        foreach (var step in Steps)
+        {
+            parent = step switch
+            {
+                GroupByStep g when string.Equals(g.NewTable, tableName, StringComparison.OrdinalIgnoreCase) => g.Table,
+                AppendTableStep a when string.Equals(a.NewTable, tableName, StringComparison.OrdinalIgnoreCase) => a.Table,
+                MergeTablesStep m when string.Equals(m.NewTable, tableName, StringComparison.OrdinalIgnoreCase) => m.Table,
+                _ => parent,
+            };
+        }
+        return parent is null || string.Equals(parent, tableName, StringComparison.OrdinalIgnoreCase)
             ? null
-            : GroupOf(creator.Table);
+            : GroupOf(parent);
     }
 
     public DataTable? GetTable(string? name) =>
@@ -184,20 +194,28 @@ public sealed class DataModel
 
         foreach (var step in Steps.ToList())
         {
-            if (step is GroupByStep g && removed.Contains(g.NewTable))
+            var created = CreatedTableName(step);
+            if (created is not null && removed.Contains(created))
             {
-                // Шаг создал удаляемую таблицу — сам шаг тоже удаляем.
                 Steps.Remove(step);
             }
             else if (removed.Contains(step.Table))
             {
                 Steps.Remove(step);
-                if (step is GroupByStep created)
-                    removed.Add(created.NewTable);
+                if (created is not null)
+                    removed.Add(created);
             }
         }
         Rebuild();
     }
+
+    private static string? CreatedTableName(TransformStep step) => step switch
+    {
+        GroupByStep g => g.NewTable,
+        AppendTableStep { NewTable: { Length: > 0 } name } => name,
+        MergeTablesStep { NewTable: { Length: > 0 } name } => name,
+        _ => null,
+    };
 
     /// <summary>Перечитывает все источники с диска. Возвращает список ошибок.</summary>
     public IReadOnlyList<string> Reload()

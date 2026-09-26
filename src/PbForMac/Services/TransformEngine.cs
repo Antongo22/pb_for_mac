@@ -106,6 +106,10 @@ public static class TransformEngine
                 UnpivotColumns(table, s.Columns, s.AttributeColumn, s.ValueColumn);
                 break;
 
+            case MergeTablesStep s:
+                MergeTables(tables, s);
+                break;
+
             case GroupByStep s:
                 if (string.IsNullOrWhiteSpace(s.NewTable))
                     throw new InvalidOperationException("Укажите имя новой таблицы.");
@@ -303,6 +307,105 @@ public static class TransformEngine
             table.Columns.Add(column.ColumnName, column.DataType);
         foreach (DataRow row in result.Rows)
             table.ImportRow(row);
+    }
+
+    /// <summary>Merge/Join двух таблиц по ключу.</summary>
+    public static void MergeTables(List<DataTable> tables, MergeTablesStep step)
+    {
+        var left = Find(tables, step.Table);
+        var right = Find(tables, step.OtherTable);
+        if (ReferenceEquals(left, right))
+            throw new InvalidOperationException("Нельзя соединить таблицу саму с собой.");
+        if (string.IsNullOrWhiteSpace(step.LeftKey) || string.IsNullOrWhiteSpace(step.RightKey))
+            throw new InvalidOperationException("Укажите ключевые столбцы обеих таблиц.");
+        RequireColumn(left, step.LeftKey);
+        RequireColumn(right, step.RightKey);
+
+        var result = new DataTable(string.IsNullOrWhiteSpace(step.NewTable) ? left.TableName : step.NewTable.Trim());
+        foreach (DataColumn column in left.Columns)
+            result.Columns.Add(column.ColumnName, column.DataType);
+
+        // Правые столбцы: уникальные имена; ключ правой таблицы не дублируем, если имя совпадает.
+        var rightMap = new List<(DataColumn Source, string Dest)>();
+        foreach (DataColumn column in right.Columns)
+        {
+            if (string.Equals(column.ColumnName, step.RightKey, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(step.LeftKey, step.RightKey, StringComparison.OrdinalIgnoreCase))
+                continue;
+            var name = QueryEngine.Unique(result, column.ColumnName);
+            result.Columns.Add(name, column.DataType);
+            rightMap.Add((column, name));
+        }
+
+        var rightIndex = new Dictionary<string, List<DataRow>>(StringComparer.OrdinalIgnoreCase);
+        foreach (DataRow row in right.Rows)
+        {
+            var key = QueryEngine.Key(row[step.RightKey]);
+            if (!rightIndex.TryGetValue(key, out var list))
+                rightIndex[key] = list = [];
+            list.Add(row);
+        }
+
+        var matchedRight = new HashSet<DataRow>();
+        foreach (DataRow leftRow in left.Rows)
+        {
+            var key = QueryEngine.Key(leftRow[step.LeftKey]);
+            if (rightIndex.TryGetValue(key, out var matches))
+            {
+                foreach (var rightRow in matches)
+                {
+                    matchedRight.Add(rightRow);
+                    AddMergedRow(result, leftRow, left, rightRow, rightMap);
+                }
+            }
+            else if (step.JoinKind is JoinKind.Left or JoinKind.Full)
+                AddMergedRow(result, leftRow, left, null, rightMap);
+        }
+
+        if (step.JoinKind == JoinKind.Full)
+        {
+            foreach (DataRow rightRow in right.Rows)
+            {
+                if (matchedRight.Contains(rightRow))
+                    continue;
+                AddMergedRow(result, null, left, rightRow, rightMap);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(step.NewTable))
+        {
+            var name = step.NewTable.Trim();
+            if (tables.Any(t => string.Equals(t.TableName, name, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException($"Таблица «{name}» уже существует.");
+            result.TableName = name;
+            tables.Add(result);
+            return;
+        }
+
+        // Заменяем содержимое левой таблицы.
+        left.Rows.Clear();
+        left.Columns.Clear();
+        foreach (DataColumn column in result.Columns)
+            left.Columns.Add(column.ColumnName, column.DataType);
+        foreach (DataRow row in result.Rows)
+            left.ImportRow(row);
+    }
+
+    private static void AddMergedRow(DataTable result, DataRow? leftRow, DataTable leftSchema,
+        DataRow? rightRow, List<(DataColumn Source, string Dest)> rightMap)
+    {
+        var row = result.NewRow();
+        if (leftRow is not null)
+        {
+            foreach (DataColumn column in leftSchema.Columns)
+                row[column.ColumnName] = leftRow[column];
+        }
+        if (rightRow is not null)
+        {
+            foreach (var (source, dest) in rightMap)
+                row[dest] = rightRow[source];
+        }
+        result.Rows.Add(row);
     }
 
     public static void ChangeType(DataTable table, string columnName, ColumnType type)

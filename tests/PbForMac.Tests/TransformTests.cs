@@ -362,6 +362,67 @@ public class TransformTests
     }
 
     [Fact]
+    public void MergeTables_LeftInnerAndFull()
+    {
+        var left = new DataTable("L");
+        left.Columns.Add("Id", typeof(string));
+        left.Columns.Add("Name", typeof(string));
+        left.Rows.Add("1", "a");
+        left.Rows.Add("2", "b");
+        left.Rows.Add("3", "c");
+        var right = new DataTable("R");
+        right.Columns.Add("Id", typeof(string));
+        right.Columns.Add("Score", typeof(int));
+        right.Rows.Add("1", 10);
+        right.Rows.Add("2", 20);
+        right.Rows.Add("9", 90);
+        var tables = new List<DataTable> { left.Copy(), right.Copy() };
+        tables[0].TableName = "L";
+        tables[1].TableName = "R";
+
+        TransformEngine.Apply(tables, new MergeTablesStep
+        {
+            Table = "L", OtherTable = "R", LeftKey = "Id", RightKey = "Id", JoinKind = JoinKind.Inner, NewTable = "Inner",
+        });
+        Assert.Equal(2, tables.Single(t => t.TableName == "Inner").Rows.Count);
+
+        TransformEngine.Apply(tables, new MergeTablesStep
+        {
+            Table = "L", OtherTable = "R", LeftKey = "Id", RightKey = "Id", JoinKind = JoinKind.Left, NewTable = "Left",
+        });
+        Assert.Equal(3, tables.Single(t => t.TableName == "Left").Rows.Count);
+
+        TransformEngine.Apply(tables, new MergeTablesStep
+        {
+            Table = "L", OtherTable = "R", LeftKey = "Id", RightKey = "Id", JoinKind = JoinKind.Full, NewTable = "Full",
+        });
+        Assert.Equal(4, tables.Single(t => t.TableName == "Full").Rows.Count);
+        Assert.Contains(tables.Single(t => t.TableName == "Full").Rows.Cast<DataRow>(),
+            r => TypeInference.IsEmpty(r["Name"]) && Equals(Convert.ToInt32(r["Score"]), 90));
+    }
+
+    [Fact]
+    public void ReportSerializer_RoundTripsMergeStep()
+    {
+        var report = new ReportDefinition
+        {
+            Steps =
+            [
+                new MergeTablesStep
+                {
+                    Table = "A", OtherTable = "B", LeftKey = "id", RightKey = "id",
+                    JoinKind = JoinKind.Full, NewTable = "AB",
+                },
+            ],
+        };
+        var restored = ReportSerializer.Deserialize(ReportSerializer.Serialize(report));
+        var step = Assert.IsType<MergeTablesStep>(restored.Steps[0]);
+        Assert.Equal(JoinKind.Full, step.JoinKind);
+        Assert.Equal("AB", step.NewTable);
+        Assert.Contains("\"mergeTables\"", ReportSerializer.Serialize(report));
+    }
+
+    [Fact]
     public void SortRows_OrdersAscendingAndDescending()
     {
         var tables = Tables();

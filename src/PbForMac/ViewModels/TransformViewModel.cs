@@ -137,6 +137,26 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
     [ObservableProperty]
     private string? _appendNewTable;
 
+    // Merge
+    public IReadOnlyList<Option<JoinKind>> JoinKinds => Labels.JoinKinds;
+    public ObservableCollection<string> MergeLeftColumns { get; } = [];
+    public ObservableCollection<string> MergeRightColumns { get; } = [];
+
+    [ObservableProperty]
+    private string? _mergeOtherTable;
+
+    [ObservableProperty]
+    private string? _mergeLeftKey;
+
+    [ObservableProperty]
+    private string? _mergeRightKey;
+
+    [ObservableProperty]
+    private Option<JoinKind> _mergeJoinKind = Labels.JoinKinds[0];
+
+    [ObservableProperty]
+    private string? _mergeNewTable;
+
     // Связи
     public ObservableCollection<RelationshipItemViewModel> Relationships { get; } = [];
     public ObservableCollection<string> RelationshipFromColumns { get; } = [];
@@ -207,8 +227,16 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
             RelationshipToTable = Tables.FirstOrDefault(t => t != RelationshipFromTable) ?? Tables.FirstOrDefault();
         if (AppendOtherTable is null || !Tables.Contains(AppendOtherTable) || AppendOtherTable == SelectedTable)
             AppendOtherTable = Tables.FirstOrDefault(t => t != SelectedTable) ?? Tables.FirstOrDefault();
+        if (MergeOtherTable is null || !Tables.Contains(MergeOtherTable) || MergeOtherTable == SelectedTable)
+            MergeOtherTable = Tables.FirstOrDefault(t => t != SelectedTable) ?? Tables.FirstOrDefault();
         FillColumns(RelationshipFromTable, RelationshipFromColumns);
         FillColumns(RelationshipToTable, RelationshipToColumns);
+        FillColumns(SelectedTable, MergeLeftColumns);
+        FillColumns(MergeOtherTable, MergeRightColumns);
+        if (MergeLeftKey is null || !MergeLeftColumns.Contains(MergeLeftKey))
+            MergeLeftKey = MergeLeftColumns.FirstOrDefault();
+        if (MergeRightKey is null || !MergeRightColumns.Contains(MergeRightKey))
+            MergeRightKey = MergeRightColumns.FirstOrDefault();
     }
 
     private void RebuildDiagram()
@@ -428,8 +456,18 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
     partial void OnSelectedTableChanged(string? value)
     {
         LoadTable();
+        FillColumns(value, MergeLeftColumns);
+        if (MergeLeftKey is null || !MergeLeftColumns.Contains(MergeLeftKey))
+            MergeLeftKey = MergeLeftColumns.FirstOrDefault();
         OnPropertyChanged(nameof(VisibleSteps));
         OnPropertyChanged(nameof(ShowFilteredStepsEmpty));
+    }
+
+    partial void OnMergeOtherTableChanged(string? value)
+    {
+        FillColumns(value, MergeRightColumns);
+        if (MergeRightKey is null || !MergeRightColumns.Contains(MergeRightKey))
+            MergeRightKey = MergeRightColumns.FirstOrDefault();
     }
 
     partial void OnSelectedColumnChanged(ColumnItem? value)
@@ -668,6 +706,32 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
     }
 
     [RelayCommand]
+    private async Task MergeTablesAsync()
+    {
+        if (SelectedTable is null || MergeOtherTable is null || MergeLeftKey is null || MergeRightKey is null)
+        {
+            Error = "Выберите таблицы и ключевые столбцы для Merge.";
+            return;
+        }
+        if (string.Equals(SelectedTable, MergeOtherTable, StringComparison.OrdinalIgnoreCase))
+        {
+            Error = "Выберите другую таблицу для Merge.";
+            return;
+        }
+        Error = null;
+        if (await _columns.MergeTablesAsync(SelectedTable, MergeOtherTable, MergeLeftKey, MergeRightKey,
+                MergeJoinKind.Value, MergeNewTable))
+        {
+            Info = string.IsNullOrWhiteSpace(MergeNewTable)
+                ? $"Merge с «{MergeOtherTable}» выполнен"
+                : $"Создана таблица «{MergeNewTable.Trim()}»";
+            if (!string.IsNullOrWhiteSpace(MergeNewTable))
+                SelectedTable = MergeNewTable.Trim();
+            MergeNewTable = null;
+        }
+    }
+
+    [RelayCommand]
     private void AddCalculatedColumn()
     {
         if (SelectedTable is null)
@@ -746,8 +810,15 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
     /// </summary>
     public async Task RemoveStepAsync(StepItemViewModel item)
     {
-        if (item.Step is GroupByStep groupBy && !await _dialogs.ConfirmAsync("Удалить шаг",
-                $"Шаг «{item.Description}» создаёт таблицу «{groupBy.NewTable}». " +
+        var created = item.Step switch
+        {
+            GroupByStep g => g.NewTable,
+            AppendTableStep { NewTable: { Length: > 0 } n } => n,
+            MergeTablesStep { NewTable: { Length: > 0 } n } => n,
+            _ => null,
+        };
+        if (created is not null && !await _dialogs.ConfirmAsync("Удалить шаг",
+                $"Шаг «{item.Description}» создаёт таблицу «{created}». " +
                 "Удалить шаг вместе с этой таблицей? Визуалы и шаги, которые её используют, перестанут работать."))
             return;
         Error = null;

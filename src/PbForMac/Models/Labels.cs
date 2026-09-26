@@ -51,6 +51,13 @@ public static class Labels
         new(FilterOperator.IsNotEmpty, "не пусто"),
     ];
 
+    public static readonly IReadOnlyList<Option<JoinKind>> JoinKinds =
+    [
+        new(JoinKind.Left, "Левое (все из текущей)"),
+        new(JoinKind.Inner, "Внутреннее (только совпадения)"),
+        new(JoinKind.Full, "Полное (все строки)"),
+    ];
+
     public static readonly IReadOnlyList<Option<VisualKind>> VisualKinds =
     [
         new(VisualKind.Column, "Гистограмма"),
@@ -74,6 +81,7 @@ public static class Labels
             Aggregation => (IEnumerable<Option<T>>)Aggregations,
             DateGranularity => (IEnumerable<Option<T>>)DateGranularities,
             FilterOperator => (IEnumerable<Option<T>>)FilterOperators,
+            JoinKind => (IEnumerable<Option<T>>)JoinKinds,
             VisualKind => (IEnumerable<Option<T>>)VisualKinds,
             _ => [],
         };
