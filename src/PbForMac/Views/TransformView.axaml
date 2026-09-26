@@ -69,6 +69,20 @@
                 <Button Grid.Column="1" Margin="6,0,0,0" Content="Вправо →" Command="{Binding MoveColumnRightCommand}"
                         ToolTip.Tip="Переместить столбец правее" />
               </Grid>
+              <Button HorizontalAlignment="Stretch" Command="{Binding ReplaceValuesCommand}"
+                      ToolTip.Tip="Как «Заменить значения» в Power Query">
+                <TextBlock Text="Заменить значения…" />
+              </Button>
+              <Grid ColumnDefinitions="*,*">
+                <Button Content="Заполнить ↓" Command="{Binding FillDownCommand}"
+                        ToolTip.Tip="Заполнить пустые ячейки значением сверху" />
+                <Button Grid.Column="1" Margin="6,0,0,0" Content="Заполнить ↑" Command="{Binding FillUpCommand}"
+                        ToolTip.Tip="Заполнить пустые ячейки значением снизу" />
+              </Grid>
+              <Button HorizontalAlignment="Stretch" Command="{Binding SplitColumnCommand}"
+                      ToolTip.Tip="Разделить текстовый столбец по разделителю">
+                <TextBlock Text="Разделить столбец…" />
+              </Button>
               <Button HorizontalAlignment="Stretch" Command="{Binding RemoveColumnCommand}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                   <PathIcon Data="{StaticResource IconDelete}" Width="12" Height="12" />
@@ -76,6 +90,8 @@
                 </StackPanel>
               </Button>
             </StackPanel>
+            <Button HorizontalAlignment="Stretch" Content="Удалить пустые строки" Command="{Binding RemoveBlankRowsCommand}"
+                    ToolTip.Tip="Удалить строки, где все ячейки пусты" />
             <Button HorizontalAlignment="Stretch" Content="Удалить дубликаты строк" Command="{Binding RemoveDuplicatesCommand}" />
           </StackPanel>
 
@@ -85,6 +101,11 @@
                 <MenuItem Header="Удалить столбец" Command="{Binding RemoveColumnCommand}" />
                 <MenuItem Header="Удалить отмеченные" Command="{Binding RemoveCheckedColumnsCommand}" />
                 <MenuItem Header="Оставить только отмеченные" Command="{Binding KeepCheckedColumnsCommand}" />
+                <Separator />
+                <MenuItem Header="Заменить значения…" Command="{Binding ReplaceValuesCommand}" />
+                <MenuItem Header="Заполнить вниз" Command="{Binding FillDownCommand}" />
+                <MenuItem Header="Заполнить вверх" Command="{Binding FillUpCommand}" />
+                <MenuItem Header="Разделить столбец…" Command="{Binding SplitColumnCommand}" />
                 <Separator />
                 <MenuItem Header="Переместить влево" Command="{Binding MoveColumnLeftCommand}" />
                 <MenuItem Header="Переместить вправо" Command="{Binding MoveColumnRightCommand}" />
@@ -258,11 +279,21 @@
 
       <Border Grid.Column="4" Classes="pane" BorderThickness="1,0,0,0">
         <DockPanel>
-          <TextBlock DockPanel.Dock="Top" Classes="paneHeader" Text="Применённые шаги" />
+          <StackPanel DockPanel.Dock="Top" Spacing="4">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Classes="paneHeader" Text="Применённые шаги" Margin="0" />
+              <TextBlock Grid.Column="1" Classes="hint" Text="{Binding StepCountText}" VerticalAlignment="Center" />
+            </Grid>
+            <CheckBox Content="Только текущая таблица" IsChecked="{Binding FilterStepsByTable}"
+                      IsVisible="{Binding HasSteps}" FontSize="12" />
+          </StackPanel>
           <TextBlock DockPanel.Dock="Top" Classes="hint" IsVisible="{Binding !HasSteps}"
                      Text="Шагов пока нет. Каждое преобразование записывается сюда и повторяется при обновлении данных." />
+          <TextBlock DockPanel.Dock="Top" Classes="hint" Margin="0,0,0,6"
+                     IsVisible="{Binding ShowFilteredStepsEmpty}"
+                     Text="Для этой таблицы шагов нет. Снимите фильтр, чтобы увидеть все." />
           <ScrollViewer>
-            <ItemsControl ItemsSource="{Binding Steps}">
+            <ItemsControl ItemsSource="{Binding VisibleSteps}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="vm:StepItemViewModel">
                   <Border Background="{DynamicResource PageBrush}" CornerRadius="4" Padding="8" Margin="0,0,0,6"

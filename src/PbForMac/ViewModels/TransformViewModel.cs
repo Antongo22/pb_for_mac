@@ -51,6 +51,16 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
     public bool HasCheckedColumns => Columns.Any(c => c.IsChecked);
     public int CheckedColumnCount => Columns.Count(c => c.IsChecked);
 
+    public string StepCountText => HasSteps ? $"({Steps.Count})" : "";
+
+    public IEnumerable<StepItemViewModel> VisibleSteps =>
+        FilterStepsByTable && SelectedTable is { } table
+            ? Steps.Where(s => string.Equals(s.Table, table, StringComparison.OrdinalIgnoreCase))
+            : Steps;
+
+    public bool ShowFilteredStepsEmpty =>
+        HasSteps && FilterStepsByTable && !VisibleSteps.Any();
+
     public string ExpressionHelp =>
         "Синтаксис выражений DataColumn.Expression:\n" +
         "  [Цена] * [Количество]\n" +
@@ -75,6 +85,10 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
 
     [ObservableProperty]
     private string? _info;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VisibleSteps), nameof(ShowFilteredStepsEmpty))]
+    private bool _filterStepsByTable;
 
     // Переименование и тип
     [ObservableProperty]
@@ -165,6 +179,9 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
         foreach (var step in _model.Steps)
             Steps.Add(new StepItemViewModel(index++, step, _model.StepErrors.GetValueOrDefault(step), item => _ = RemoveStepAsync(item)));
         OnPropertyChanged(nameof(HasSteps));
+        OnPropertyChanged(nameof(StepCountText));
+        OnPropertyChanged(nameof(VisibleSteps));
+        OnPropertyChanged(nameof(ShowFilteredStepsEmpty));
 
         Relationships.Clear();
         foreach (var relationship in _model.Relationships)
@@ -397,7 +414,12 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
         _model.RemoveRelationship(item.Relationship);
     }
 
-    partial void OnSelectedTableChanged(string? value) => LoadTable();
+    partial void OnSelectedTableChanged(string? value)
+    {
+        LoadTable();
+        OnPropertyChanged(nameof(VisibleSteps));
+        OnPropertyChanged(nameof(ShowFilteredStepsEmpty));
+    }
 
     partial void OnSelectedColumnChanged(ColumnItem? value)
     {
@@ -552,6 +574,46 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
     {
         if (SelectedTable is not null)
             TryAddStep(new RemoveDuplicatesStep { Table = SelectedTable });
+    }
+
+    [RelayCommand]
+    private async Task ReplaceValuesAsync()
+    {
+        if (SelectedTable is null || SelectedColumn is null)
+            return;
+        await _columns.ReplaceValuesAsync(SelectedTable, SelectedColumn.Name);
+    }
+
+    [RelayCommand]
+    private async Task FillDownAsync()
+    {
+        if (SelectedTable is null || SelectedColumn is null)
+            return;
+        await _columns.FillDownAsync(SelectedTable, SelectedColumn.Name);
+    }
+
+    [RelayCommand]
+    private async Task FillUpAsync()
+    {
+        if (SelectedTable is null || SelectedColumn is null)
+            return;
+        await _columns.FillUpAsync(SelectedTable, SelectedColumn.Name);
+    }
+
+    [RelayCommand]
+    private async Task SplitColumnAsync()
+    {
+        if (SelectedTable is null || SelectedColumn is null)
+            return;
+        await _columns.SplitColumnAsync(SelectedTable, SelectedColumn.Name);
+    }
+
+    [RelayCommand]
+    private async Task RemoveBlankRowsAsync()
+    {
+        if (SelectedTable is null)
+            return;
+        await _columns.RemoveBlankRowsAsync(SelectedTable);
     }
 
     [RelayCommand]

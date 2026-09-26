@@ -18,8 +18,8 @@ public sealed partial class TableVisualViewModel : VisualViewModel
     {
     }
 
-    public override string CategoryCaption => "Строки (группировка)";
-    public override string ValuesCaption => "Столбцы / значения";
+    public override string CategoryCaption => "Строки";
+    public override string ValuesCaption => "Значения";
 
     public override string AutoTitle => CategoryField is null ? Table ?? "Таблица" : base.AutoTitle;
 

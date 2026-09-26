@@ -44,12 +44,13 @@ public sealed partial class ChartVisualViewModel : VisualViewModel
 
     public override string CategoryCaption => Kind switch
     {
-        VisualKind.Scatter => "Ось X (число)",
+        VisualKind.Scatter => "Ось X",
         VisualKind.Pie => "Легенда",
-        _ => "Ось",
+        VisualKind.Bar => "Ось Y (категория)",
+        _ => "Ось X (категория)",
     };
 
-    public override string ValuesCaption => Kind == VisualKind.Scatter ? "Ось Y (число)" : "Значения";
+    public override string ValuesCaption => Kind == VisualKind.Scatter ? "Ось Y" : "Значения";
     public override bool ShowsAggregation => Kind != VisualKind.Scatter;
     public override bool ShowsTopN => Kind != VisualKind.Scatter;
 

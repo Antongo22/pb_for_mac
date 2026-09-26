@@ -18,6 +18,11 @@ namespace PbForMac.Models;
 [JsonDerivedType(typeof(RemoveRowsStep), "removeRows")]
 [JsonDerivedType(typeof(KeepRowsStep), "keepRows")]
 [JsonDerivedType(typeof(RemoveDuplicatesStep), "distinct")]
+[JsonDerivedType(typeof(ReplaceValuesStep), "replaceValues")]
+[JsonDerivedType(typeof(FillDownStep), "fillDown")]
+[JsonDerivedType(typeof(FillUpStep), "fillUp")]
+[JsonDerivedType(typeof(RemoveBlankRowsStep), "removeBlankRows")]
+[JsonDerivedType(typeof(SplitColumnStep), "splitColumn")]
 [JsonDerivedType(typeof(GroupByStep), "groupBy")]
 public abstract class TransformStep
 {
@@ -111,6 +116,80 @@ public sealed class KeepRowsStep : TransformStep
 public sealed class RemoveDuplicatesStep : TransformStep
 {
     public override string Description => "Удалены дубликаты строк";
+}
+
+/// <summary>Заменяет значения в столбце (как «Заменить значения» в Power Query).</summary>
+public sealed class ReplaceValuesStep : TransformStep
+{
+    public string Column { get; set; } = "";
+
+    /// <summary>Искомое значение; пустая строка — пустые ячейки.</summary>
+    public string Find { get; set; } = "";
+
+    /// <summary>На что заменить; пустая строка — очистить ячейку.</summary>
+    public string Replace { get; set; } = "";
+
+    /// <summary>true — совпадение всей ячейки; false — подстрока в тексте.</summary>
+    public bool MatchEntireCell { get; set; } = true;
+
+    public override string Description
+    {
+        get
+        {
+            var find = string.IsNullOrEmpty(Find) ? "(пусто)" : $"«{Find}»";
+            var replace = string.IsNullOrEmpty(Replace) ? "(пусто)" : $"«{Replace}»";
+            var mode = MatchEntireCell ? "" : " (подстрока)";
+            return $"Замена в «{Column}»: {find} → {replace}{mode}";
+        }
+    }
+}
+
+/// <summary>Заполняет пустые ячейки значением сверху (Fill Down).</summary>
+public sealed class FillDownStep : TransformStep
+{
+    public string Column { get; set; } = "";
+    public override string Description => $"Заполнение вниз «{Column}»";
+}
+
+/// <summary>Заполняет пустые ячейки значением снизу (Fill Up).</summary>
+public sealed class FillUpStep : TransformStep
+{
+    public string Column { get; set; } = "";
+    public override string Description => $"Заполнение вверх «{Column}»";
+}
+
+/// <summary>
+/// Удаляет полностью пустые строки. Если <see cref="Columns"/> пуст —
+/// строка удаляется, когда пусты все столбцы; иначе — когда пусты указанные.
+/// </summary>
+public sealed class RemoveBlankRowsStep : TransformStep
+{
+    public List<string> Columns { get; set; } = [];
+
+    public override string Description =>
+        Columns.Count == 0
+            ? "Удалены пустые строки"
+            : $"Удалены строки с пустыми: {string.Join(", ", Columns.Select(c => $"«{c}»"))}";
+}
+
+/// <summary>Разделяет текстовый столбец по разделителю на несколько столбцов.</summary>
+public sealed class SplitColumnStep : TransformStep
+{
+    public string Column { get; set; } = "";
+    public string Delimiter { get; set; } = ",";
+
+    /// <summary>Максимум частей; 0 или меньше — без ограничения (по фактическому максимуму).</summary>
+    public int MaxParts { get; set; }
+
+    public override string Description
+    {
+        get
+        {
+            var delim = string.IsNullOrEmpty(Delimiter) ? "(пусто)" : $"«{Delimiter}»";
+            var limit = MaxParts > 0 ? $", до {MaxParts} частей" : "";
+            return $"Разделён столбец «{Column}» по {delim}{limit}";
+        }
+    }
 }
 
 public sealed class AggregationSpec

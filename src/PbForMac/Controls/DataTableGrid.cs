@@ -248,6 +248,12 @@ public sealed class DataTableGrid : UserControl
         menu.Items.Add(Item("Переименовать…", () => editor.RenameAsync(table, column)));
         menu.Items.Add(Item("Дублировать столбец", () => editor.DuplicateAsync(table, column)));
 
+        menu.Items.Add(new Separator());
+        menu.Items.Add(Item("Заменить значения…", () => editor.ReplaceValuesAsync(table, column)));
+        menu.Items.Add(Item("Заполнить вниз", () => editor.FillDownAsync(table, column)));
+        menu.Items.Add(Item("Заполнить вверх", () => editor.FillUpAsync(table, column)));
+        menu.Items.Add(Item("Разделить столбец…", () => editor.SplitColumnAsync(table, column)));
+
         var typeMenu = new MenuItem { Header = "Сменить тип" };
         foreach (var option in Labels.ColumnTypes)
         {
@@ -292,6 +298,8 @@ public sealed class DataTableGrid : UserControl
 
         menu.Items.Add(Item(label, () => editor.RemoveRowsAsync(table, rows)));
         menu.Items.Add(Item(keepLabel, () => editor.KeepRowsAsync(table, rows)));
+        menu.Items.Add(new Separator());
+        menu.Items.Add(Item("Удалить пустые строки таблицы", () => editor.RemoveBlankRowsAsync(table)));
         return menu;
     }
 

@@ -170,6 +170,100 @@ public sealed class ColumnEditor(DataModel model, IDialogService dialogs)
         }
     }
 
+    public async Task<bool> ReplaceValuesAsync(string table, string column)
+    {
+        var find = await dialogs.PromptAsync("Заменить значения",
+            $"Столбец «{column}»: что искать? (оставьте пустым для пустых ячеек)", "");
+        if (find is null)
+            return false;
+        var replace = await dialogs.PromptAsync("Заменить значения",
+            $"Столбец «{column}»: на что заменить «{(string.IsNullOrEmpty(find) ? "(пусто)" : find)}»?", "");
+        if (replace is null)
+            return false;
+        try
+        {
+            model.AddStep(new ReplaceValuesStep
+            {
+                Table = table,
+                Column = column,
+                Find = find,
+                Replace = replace,
+                MatchEntireCell = true,
+            });
+            return true;
+        }
+        catch (InvalidOperationException e)
+        {
+            await dialogs.ShowMessageAsync("Не удалось заменить значения", e.Message);
+            return false;
+        }
+    }
+
+    public async Task<bool> FillDownAsync(string table, string column)
+    {
+        try
+        {
+            model.AddStep(new FillDownStep { Table = table, Column = column });
+            return true;
+        }
+        catch (InvalidOperationException e)
+        {
+            await dialogs.ShowMessageAsync("Не удалось заполнить вниз", e.Message);
+            return false;
+        }
+    }
+
+    public async Task<bool> FillUpAsync(string table, string column)
+    {
+        try
+        {
+            model.AddStep(new FillUpStep { Table = table, Column = column });
+            return true;
+        }
+        catch (InvalidOperationException e)
+        {
+            await dialogs.ShowMessageAsync("Не удалось заполнить вверх", e.Message);
+            return false;
+        }
+    }
+
+    public async Task<bool> SplitColumnAsync(string table, string column)
+    {
+        var delimiter = await dialogs.PromptAsync("Разделить столбец",
+            $"Разделитель для «{column}» (например , ; | или пробел)", ",");
+        if (delimiter is null || delimiter.Length == 0)
+            return false;
+        try
+        {
+            model.AddStep(new SplitColumnStep
+            {
+                Table = table,
+                Column = column,
+                Delimiter = delimiter,
+            });
+            return true;
+        }
+        catch (InvalidOperationException e)
+        {
+            await dialogs.ShowMessageAsync("Не удалось разделить столбец", e.Message);
+            return false;
+        }
+    }
+
+    public async Task<bool> RemoveBlankRowsAsync(string table)
+    {
+        try
+        {
+            model.AddStep(new RemoveBlankRowsStep { Table = table });
+            return true;
+        }
+        catch (InvalidOperationException e)
+        {
+            await dialogs.ShowMessageAsync("Не удалось удалить пустые строки", e.Message);
+            return false;
+        }
+    }
+
     public int? Ordinal(string table, string column) =>
         model.GetTable(table)?.Columns[column]?.Ordinal;
 

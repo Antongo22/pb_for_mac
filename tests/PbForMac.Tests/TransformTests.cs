@@ -142,6 +142,105 @@ public class TransformTests
     }
 
     [Fact]
+    public void ReplaceValues_EntireCellAndSubstring()
+    {
+        var tables = Tables();
+        var table = tables[0];
+
+        TransformEngine.Apply(tables, new ReplaceValuesStep
+        {
+            Table = "Продажи",
+            Column = "Регион",
+            Find = "Юг",
+            Replace = "Южный",
+            MatchEntireCell = true,
+        });
+        Assert.Equal(2, table.Rows.Cast<DataRow>().Count(r => Equals(r["Регион"], "Южный")));
+        Assert.DoesNotContain(table.Rows.Cast<DataRow>(), r => Equals(r["Регион"], "Юг"));
+
+        TransformEngine.Apply(tables, new ReplaceValuesStep
+        {
+            Table = "Продажи",
+            Column = "Регион",
+            Find = "Юж",
+            Replace = "Юг",
+            MatchEntireCell = false,
+        });
+        Assert.Contains(table.Rows.Cast<DataRow>(), r => Equals(r["Регион"], "Югный"));
+    }
+
+    [Fact]
+    public void FillDownAndFillUp()
+    {
+        var table = new DataTable("T");
+        table.Columns.Add("A", typeof(string));
+        table.Rows.Add("x");
+        table.Rows.Add(DBNull.Value);
+        table.Rows.Add(DBNull.Value);
+        table.Rows.Add("y");
+        table.Rows.Add(DBNull.Value);
+        var tables = new List<DataTable> { table };
+
+        TransformEngine.Apply(tables, new FillDownStep { Table = "T", Column = "A" });
+        Assert.Equal(["x", "x", "x", "y", "y"], table.Rows.Cast<DataRow>().Select(r => (string)r["A"]).ToArray());
+
+        table.Rows[1]["A"] = DBNull.Value;
+        table.Rows[2]["A"] = DBNull.Value;
+        TransformEngine.Apply(tables, new FillUpStep { Table = "T", Column = "A" });
+        Assert.Equal("y", table.Rows[1]["A"]);
+        Assert.Equal("y", table.Rows[2]["A"]);
+    }
+
+    [Fact]
+    public void RemoveBlankRows_AllColumnsAndSelected()
+    {
+        var table = new DataTable("T");
+        table.Columns.Add("A", typeof(string));
+        table.Columns.Add("B", typeof(string));
+        table.Rows.Add("a", "b");
+        table.Rows.Add(DBNull.Value, DBNull.Value);
+        table.Rows.Add("", "  ");
+        table.Rows.Add("c", DBNull.Value);
+        var tables = new List<DataTable> { table };
+
+        TransformEngine.Apply(tables, new RemoveBlankRowsStep { Table = "T" });
+        Assert.Equal(2, table.Rows.Count);
+        Assert.Equal("a", table.Rows[0]["A"]);
+        Assert.Equal("c", table.Rows[1]["A"]);
+
+        TransformEngine.Apply(tables, new RemoveBlankRowsStep { Table = "T", Columns = ["B"] });
+        Assert.Single(table.Rows);
+        Assert.Equal("a", table.Rows[0]["A"]);
+    }
+
+    [Fact]
+    public void SplitColumn_ByDelimiter()
+    {
+        var table = new DataTable("T");
+        table.Columns.Add("Код", typeof(string));
+        table.Columns.Add("Другое", typeof(int));
+        table.Rows.Add("A-B-C", 1);
+        table.Rows.Add("X-Y", 2);
+        table.Rows.Add(DBNull.Value, 3);
+        var tables = new List<DataTable> { table };
+
+        TransformEngine.Apply(tables, new SplitColumnStep { Table = "T", Column = "Код", Delimiter = "-" });
+
+        Assert.False(table.Columns.Contains("Код"));
+        Assert.True(table.Columns.Contains("Код.1"));
+        Assert.True(table.Columns.Contains("Код.2"));
+        Assert.True(table.Columns.Contains("Код.3"));
+        Assert.Equal(0, table.Columns["Код.1"]!.Ordinal);
+        Assert.Equal("A", table.Rows[0]["Код.1"]);
+        Assert.Equal("B", table.Rows[0]["Код.2"]);
+        Assert.Equal("C", table.Rows[0]["Код.3"]);
+        Assert.Equal("X", table.Rows[1]["Код.1"]);
+        Assert.Equal("Y", table.Rows[1]["Код.2"]);
+        Assert.True(TypeInference.IsEmpty(table.Rows[1]["Код.3"]));
+        Assert.True(TypeInference.IsEmpty(table.Rows[2]["Код.1"]));
+    }
+
+    [Fact]
     public void ReportSerializer_RoundTripsPolymorphicSteps()
     {
         var report = new ReportDefinition
@@ -156,6 +255,11 @@ public class TransformTests
                 new MoveColumnStep { Table = "A", Column = "x", NewOrdinal = 0 },
                 new RemoveRowsStep { Table = "A", RowKeys = ["k1", "k2"] },
                 new KeepRowsStep { Table = "A", RowKeys = ["k1"] },
+                new ReplaceValuesStep { Table = "A", Column = "x", Find = "1", Replace = "2" },
+                new FillDownStep { Table = "A", Column = "x" },
+                new FillUpStep { Table = "A", Column = "x" },
+                new RemoveBlankRowsStep { Table = "A", Columns = ["x"] },
+                new SplitColumnStep { Table = "A", Column = "x", Delimiter = ";", MaxParts = 3 },
             ],
             Visuals = [new VisualDefinition { Kind = VisualKind.Pie, Table = "A", ValueFields = ["x"] }],
         };
@@ -169,6 +273,11 @@ public class TransformTests
         Assert.Contains("\"moveColumn\"", json);
         Assert.Contains("\"removeRows\"", json);
         Assert.Contains("\"keepRows\"", json);
+        Assert.Contains("\"replaceValues\"", json);
+        Assert.Contains("\"fillDown\"", json);
+        Assert.Contains("\"fillUp\"", json);
+        Assert.Contains("\"removeBlankRows\"", json);
+        Assert.Contains("\"splitColumn\"", json);
         Assert.IsType<CalculatedColumnStep>(restored.Steps[0]);
         Assert.Equal(["1"], ((FilterRowsStep)restored.Steps[1]).Filter.Values);
         Assert.Equal(["a", "b"], ((RemoveColumnsStep)restored.Steps[2]).Columns);
@@ -176,6 +285,11 @@ public class TransformTests
         Assert.Equal(0, ((MoveColumnStep)restored.Steps[4]).NewOrdinal);
         Assert.Equal(["k1", "k2"], ((RemoveRowsStep)restored.Steps[5]).RowKeys);
         Assert.Equal(["k1"], ((KeepRowsStep)restored.Steps[6]).RowKeys);
+        Assert.Equal("2", ((ReplaceValuesStep)restored.Steps[7]).Replace);
+        Assert.Equal("x", ((FillDownStep)restored.Steps[8]).Column);
+        Assert.Equal("x", ((FillUpStep)restored.Steps[9]).Column);
+        Assert.Equal(["x"], ((RemoveBlankRowsStep)restored.Steps[10]).Columns);
+        Assert.Equal(";", ((SplitColumnStep)restored.Steps[11]).Delimiter);
         Assert.Equal(VisualKind.Pie, restored.Visuals[0].Kind);
     }
 }

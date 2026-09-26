@@ -70,6 +70,26 @@ public static class TransformEngine
                 }
                 break;
 
+            case ReplaceValuesStep s:
+                ReplaceValues(table, s.Column, s.Find, s.Replace, s.MatchEntireCell);
+                break;
+
+            case FillDownStep s:
+                FillColumn(table, s.Column, downward: true);
+                break;
+
+            case FillUpStep s:
+                FillColumn(table, s.Column, downward: false);
+                break;
+
+            case RemoveBlankRowsStep s:
+                RemoveBlankRows(table, s.Columns);
+                break;
+
+            case SplitColumnStep s:
+                SplitColumn(table, s.Column, s.Delimiter, s.MaxParts);
+                break;
+
             case GroupByStep s:
                 if (string.IsNullOrWhiteSpace(s.NewTable))
                     throw new InvalidOperationException("Укажите имя новой таблицы.");
@@ -151,6 +171,129 @@ public static class TransformEngine
     /// Добавляет столбец, вычисленный по выражению <see cref="DataColumn.Expression"/>,
     /// и «материализует» значения, чтобы столбец не зависел от последующих шагов.
     /// </summary>
+    public static void ReplaceValues(DataTable table, string columnName, string find, string replace, bool matchEntireCell)
+    {
+        var column = RequireColumn(table, columnName);
+        var type = TypeInference.FromClr(column.DataType);
+        var findEmpty = string.IsNullOrEmpty(find);
+        object? replacement = string.IsNullOrEmpty(replace)
+            ? DBNull.Value
+            : TypeInference.Convert(replace, type);
+
+        foreach (DataRow row in table.Rows)
+        {
+            var current = row[column];
+            if (matchEntireCell)
+            {
+                var matches = findEmpty
+                    ? TypeInference.IsEmpty(current)
+                    : string.Equals(QueryEngine.Key(current), find, StringComparison.OrdinalIgnoreCase);
+                if (matches)
+                    row[column] = replacement ?? DBNull.Value;
+            }
+            else
+            {
+                if (TypeInference.IsEmpty(current))
+                    continue;
+                var text = QueryEngine.Key(current);
+                if (!text.Contains(find, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                var updated = text.Replace(find, replace ?? "", StringComparison.OrdinalIgnoreCase);
+                row[column] = string.IsNullOrEmpty(updated)
+                    ? DBNull.Value
+                    : TypeInference.Convert(updated, type);
+            }
+        }
+    }
+
+    public static void FillColumn(DataTable table, string columnName, bool downward)
+    {
+        var column = RequireColumn(table, columnName);
+        object? carry = null;
+        var rows = table.Rows.Cast<DataRow>();
+        foreach (var row in downward ? rows : rows.Reverse())
+        {
+            var value = row[column];
+            if (TypeInference.IsEmpty(value))
+            {
+                if (carry is not null)
+                    row[column] = carry;
+            }
+            else
+            {
+                carry = value is ICloneable cloneable ? cloneable.Clone() : value;
+            }
+        }
+    }
+
+    public static void RemoveBlankRows(DataTable table, IReadOnlyList<string> columns)
+    {
+        DataColumn[] targets;
+        if (columns.Count == 0)
+        {
+            targets = table.Columns.Cast<DataColumn>().ToArray();
+        }
+        else
+        {
+            foreach (var name in columns)
+                RequireColumn(table, name);
+            targets = columns.Select(n => table.Columns[n]!).ToArray();
+        }
+
+        if (targets.Length == 0)
+            return;
+
+        foreach (var row in table.Rows.Cast<DataRow>().ToList())
+        {
+            if (targets.All(c => TypeInference.IsEmpty(row[c])))
+                table.Rows.Remove(row);
+        }
+    }
+
+    public static void SplitColumn(DataTable table, string columnName, string delimiter, int maxParts)
+    {
+        var column = RequireColumn(table, columnName);
+        if (string.IsNullOrEmpty(delimiter))
+            throw new InvalidOperationException("Укажите разделитель.");
+
+        var ordinal = column.Ordinal;
+        var parts = table.Rows.Cast<DataRow>()
+            .Select(r => SplitText(QueryEngine.Key(r[column]), delimiter, maxParts))
+            .ToList();
+        var count = parts.Count == 0 ? 1 : Math.Max(1, parts.Max(p => p.Length));
+        if (maxParts > 0)
+            count = Math.Min(count, maxParts);
+
+        var newColumns = new DataColumn[count];
+        for (var i = 0; i < count; i++)
+        {
+            var name = QueryEngine.Unique(table, $"{columnName}.{i + 1}");
+            newColumns[i] = table.Columns.Add(name, typeof(string));
+        }
+
+        for (var r = 0; r < table.Rows.Count; r++)
+        {
+            var split = parts[r];
+            for (var i = 0; i < count; i++)
+                table.Rows[r][newColumns[i]] = i < split.Length && split[i].Length > 0
+                    ? split[i]
+                    : DBNull.Value;
+        }
+
+        table.Columns.Remove(column);
+        for (var i = 0; i < newColumns.Length; i++)
+            newColumns[i].SetOrdinal(ordinal + i);
+    }
+
+    private static string[] SplitText(string text, string delimiter, int maxParts)
+    {
+        if (string.IsNullOrEmpty(text))
+            return [""];
+        if (maxParts > 0)
+            return text.Split(delimiter, maxParts, StringSplitOptions.None);
+        return text.Split(delimiter, StringSplitOptions.None);
+    }
+
     public static void AddCalculatedColumn(DataTable table, string name, string expression)
     {
         if (string.IsNullOrWhiteSpace(name))

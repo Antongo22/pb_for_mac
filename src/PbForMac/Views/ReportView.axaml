@@ -50,7 +50,7 @@
             <TextBlock Classes="hint" TextAlignment="Center" HorizontalAlignment="Center" IsVisible="{Binding !HasData}"
                        Text="Загрузите данные из CSV, Excel, JSON, XML или SQLite либо откройте готовый пример." />
             <TextBlock Classes="hint" TextAlignment="Center" HorizontalAlignment="Center" IsVisible="{Binding HasData}"
-                       Text="Выберите тип визуализации справа — поля подставятся автоматически, их можно поменять в панели «Поля»." />
+                       Text="Выберите тип визуализации справа — поля подставятся автоматически. Настройте оси и значения в «Областях полей»." />
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" IsVisible="{Binding !HasData}">
               <Button Classes="accent" Content="Получить данные" Command="{Binding ImportCommand}" />
               <Button Content="Из папки" Command="{Binding ImportFolderCommand}" />
@@ -104,9 +104,11 @@
                 <StackPanel Spacing="2">
                   <Rectangle Height="1" Fill="{DynamicResource DividerBrush}" Margin="0,0,0,10" />
                   <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Classes="paneHeader" Text="Поля" />
+                    <TextBlock Classes="paneHeader" Text="Области полей" />
                     <TextBlock Grid.Column="1" Classes="hint" Text="{Binding KindLabel}" />
                   </Grid>
+                  <TextBlock Classes="hint" Margin="0,0,0,6"
+                             Text="Выберите поля для осей и значений — как в Power BI Desktop." />
 
                   <TextBlock Classes="caption" Text="Заголовок" />
                   <TextBox Text="{Binding Title}" Watermark="{Binding AutoTitle}" />
@@ -114,14 +116,17 @@
                   <TextBlock Classes="caption" Text="Таблица" />
                   <ComboBox ItemsSource="{Binding TableNames}" SelectedItem="{Binding Table}" />
 
-                  <StackPanel IsVisible="{Binding ShowsCategory}">
+                  <StackPanel IsVisible="{Binding ShowsCategory}" Margin="0,8,0,0">
                     <TextBlock Classes="caption" Text="{Binding CategoryCaption}" />
-                    <Grid ColumnDefinitions="*,Auto">
-                      <ComboBox ItemsSource="{Binding CategoryOptions}" SelectedItem="{Binding CategoryField}" PlaceholderText="Не выбрано" />
-                      <Button Grid.Column="1" Classes="icon" Margin="4,0,0,0" Command="{Binding ClearCategory}" ToolTip.Tip="Очистить">
-                        <PathIcon Data="{StaticResource IconClose}" />
-                      </Button>
-                    </Grid>
+                    <Border Classes="fieldWell">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <ComboBox ItemsSource="{Binding CategoryOptions}" SelectedItem="{Binding CategoryField}"
+                                  PlaceholderText="Выберите поле" BorderThickness="0" Background="Transparent" />
+                        <Button Grid.Column="1" Classes="icon" Margin="4,0,0,0" Command="{Binding ClearCategory}" ToolTip.Tip="Очистить">
+                          <PathIcon Data="{StaticResource IconClose}" />
+                        </Button>
+                      </Grid>
+                    </Border>
                   </StackPanel>
 
                   <StackPanel IsVisible="{Binding ShowsGranularity}">
@@ -129,9 +134,9 @@
                     <ComboBox ItemsSource="{Binding Granularities}" SelectedItem="{Binding Granularity}" />
                   </StackPanel>
 
-                  <StackPanel IsVisible="{Binding ShowsValues}">
+                  <StackPanel IsVisible="{Binding ShowsValues}" Margin="0,8,0,0">
                     <TextBlock Classes="caption" Text="{Binding ValuesCaption}" />
-                    <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                    <Border Classes="fieldWell" MinHeight="72">
                       <ScrollViewer MaxHeight="190">
                         <ItemsControl ItemsSource="{Binding ValueOptions}">
                           <ItemsControl.ItemTemplate>
@@ -142,6 +147,7 @@
                         </ItemsControl>
                       </ScrollViewer>
                     </Border>
+                    <TextBlock Classes="hint" Margin="0,4,0,0" Text="Отметьте поля значений. Можно выбрать несколько." />
                   </StackPanel>
 
                   <StackPanel IsVisible="{Binding ShowsAggregation}">

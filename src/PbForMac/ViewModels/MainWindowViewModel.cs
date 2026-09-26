@@ -34,6 +34,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         Data = new DataViewModel(Model, dialogs, ImportCommand, ImportFolderCommand);
         Transform = new TransformViewModel(Model, dialogs);
         _currentPage = Report;
+        Model.Changed += (_, _) => RefreshModelSummary();
+        Report.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(ReportViewModel.SelectedVisual) or nameof(ReportViewModel.HasSelection))
+                RefreshSelectionStatus();
+        };
+        RefreshModelSummary();
     }
 
     public DataModel Model { get; } = new();
@@ -52,6 +59,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool _isBusy;
+
+    [ObservableProperty]
+    private string _modelSummary = "";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Title))]
@@ -91,13 +101,64 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void ShowReport() => CurrentPage = Report;
+    private void ShowReport()
+    {
+        CurrentPage = Report;
+        RefreshSelectionStatus();
+    }
 
     [RelayCommand]
-    private void ShowData() => CurrentPage = Data;
+    private void ShowData()
+    {
+        CurrentPage = Data;
+        Status = Data.SelectedTable is { } table
+            ? $"Данные · {table.Name}"
+            : "Данные";
+    }
 
     [RelayCommand]
-    private void ShowModel() => CurrentPage = Transform;
+    private void ShowModel()
+    {
+        CurrentPage = Transform;
+        Status = Transform.SelectedTable is { } table
+            ? $"Модель · {table}"
+            : "Модель";
+    }
+
+    private void RefreshModelSummary()
+    {
+        var tables = Model.Tables.Count;
+        if (tables == 0)
+        {
+            ModelSummary = "";
+            return;
+        }
+
+        var rows = Model.Tables.Sum(t => t.Rows.Count);
+        var steps = Model.Steps.Count;
+        var links = Model.Relationships.Count;
+        var visuals = Report.Visuals.Count;
+        var parts = new List<string> { $"Таблиц: {tables}", $"Строк: {rows:N0}" };
+        if (steps > 0)
+            parts.Add($"Шагов: {steps}");
+        if (links > 0)
+            parts.Add($"Связей: {links}");
+        if (visuals > 0)
+            parts.Add($"Визуалов: {visuals}");
+        ModelSummary = string.Join("  ·  ", parts);
+    }
+
+    private void RefreshSelectionStatus()
+    {
+        if (CurrentPage != Report || IsBusy)
+            return;
+        if (Report.SelectedVisual is { } visual)
+            Status = $"Выбран: {visual.KindLabel} — {visual.DisplayTitle}";
+        else if (Model.Tables.Count > 0)
+            Status = "Отчёт · выберите визуал или добавьте новый справа";
+        else
+            Status = "Готово";
+    }
 
     [RelayCommand]
     private async Task ImportAsync()

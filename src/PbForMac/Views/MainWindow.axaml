@@ -165,10 +165,14 @@
     <!-- Строка состояния -->
     <Border Grid.Row="2" Grid.Column="1" Background="{DynamicResource PanelBrush}"
             BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Padding="12,3">
-      <StackPanel Orientation="Horizontal" Spacing="10">
-        <ProgressBar IsIndeterminate="True" Width="80" MinWidth="80" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
-        <TextBlock Classes="hint" Text="{Binding Status}" VerticalAlignment="Center" />
-      </StackPanel>
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <ProgressBar IsIndeterminate="True" Width="80" MinWidth="80" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
+          <TextBlock Classes="hint" Text="{Binding Status}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+        <TextBlock Grid.Column="1" Classes="hint" Text="{Binding ModelSummary}" VerticalAlignment="Center"
+                   Margin="16,0,0,0" />
+      </Grid>
     </Border>
   </Grid>
 </Window>
