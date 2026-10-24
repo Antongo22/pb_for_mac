@@ -71,12 +71,13 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
         "Операторы: + - * / %  = <> < > <= >=  AND OR NOT  LIKE  IN";
 
     public string MeasureHelp =>
-        "Упрощённый DAX (MVP):\n" +
-        "  Total Revenue := SUM(Sales[Revenue])\n" +
-        "  или SUM([Revenue]) на домашней таблице\n" +
-        "  Rev Brand Confecta :=\n" +
-        "    CALCULATE([Total Revenue], KEEPFILTERS(Products[Brand] = \"Confecta\"))\n" +
-        "Также: AVERAGE, COUNT, MIN, MAX, DISTINCTCOUNT.";
+        "Упрощённый DAX:\n" +
+        "  SUM / AVERAGE / COUNT / MIN / MAX / DISTINCTCOUNT\n" +
+        "  COUNTROWS(Sales) · DIVIDE([A], [B], 0)\n" +
+        "  [A] + [B] * 0.2 · скобки\n" +
+        "  CALCULATE([Total], Products[Brand] = \"Confecta\")  — замена фильтра\n" +
+        "  CALCULATE([Total], KEEPFILTERS(Products[Brand] = \"Confecta\"))\n" +
+        "  CALCULATE([Total], ALL(Products)) / REMOVEFILTERS(Products[Brand])";
 
     public ObservableCollection<MeasureItemViewModel> Measures { get; } = [];
 
@@ -86,7 +87,14 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
     [ObservableProperty]
     private string? _measureExpression;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MeasureEditorCaption))]
+    [NotifyPropertyChangedFor(nameof(IsEditingMeasure))]
+    private MeasureDefinition? _editingMeasure;
+
     public bool HasMeasures => Measures.Count > 0;
+    public bool IsEditingMeasure => EditingMeasure is not null;
+    public string MeasureEditorCaption => IsEditingMeasure ? "Сохранить меру" : "Добавить меру";
 
 
     [ObservableProperty]
@@ -284,7 +292,7 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
 
         Measures.Clear();
         foreach (var measure in _model.Measures.OrderBy(m => m.Name))
-            Measures.Add(new MeasureItemViewModel(measure, item => _ = RemoveMeasureAsync(item)));
+            Measures.Add(new MeasureItemViewModel(measure, EditMeasure, item => _ = RemoveMeasureAsync(item)));
         OnPropertyChanged(nameof(HasMeasures));
 
         if (RelationshipFromTable is null || !Tables.Contains(RelationshipFromTable))
@@ -873,15 +881,25 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
         Error = null;
         try
         {
-            _model.AddMeasure(new MeasureDefinition
+            var name = MeasureName?.Trim() ?? "";
+            var table = SelectedTable ?? "";
+            var expression = MeasureExpression?.Trim() ?? "";
+            if (EditingMeasure is { } editing)
             {
-                Name = MeasureName?.Trim() ?? "",
-                Table = SelectedTable ?? "",
-                Expression = MeasureExpression?.Trim() ?? "",
-            });
-            Info = $"Добавлена мера «{MeasureName?.Trim()}».";
-            MeasureName = null;
-            MeasureExpression = null;
+                _model.UpdateMeasure(editing, name, table, expression);
+                Info = $"Обновлена мера «{name}».";
+            }
+            else
+            {
+                _model.AddMeasure(new MeasureDefinition
+                {
+                    Name = name,
+                    Table = table,
+                    Expression = expression,
+                });
+                Info = $"Добавлена мера «{name}».";
+            }
+            ClearMeasureEditor();
         }
         catch (Exception e)
         {
@@ -889,10 +907,33 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
         }
     }
 
+    [RelayCommand]
+    private void CancelMeasureEdit() => ClearMeasureEditor();
+
+    private void EditMeasure(MeasureItemViewModel item)
+    {
+        EditingMeasure = item.Measure;
+        MeasureName = item.Name;
+        MeasureExpression = item.Expression;
+        if (!string.IsNullOrEmpty(item.Table))
+            SelectedTable = item.Table;
+        Error = null;
+        Info = $"Редактирование «{item.Name}».";
+    }
+
+    private void ClearMeasureEditor()
+    {
+        EditingMeasure = null;
+        MeasureName = null;
+        MeasureExpression = null;
+    }
+
     private async Task RemoveMeasureAsync(MeasureItemViewModel item)
     {
         if (!await _dialogs.ConfirmAsync("Удалить меру", $"Удалить меру «{item.Name}»?"))
             return;
+        if (EditingMeasure == item.Measure)
+            ClearMeasureEditor();
         _model.RemoveMeasure(item.Measure);
         Info = $"Удалена мера «{item.Name}».";
     }

@@ -252,7 +252,8 @@ public sealed partial class ReportPageItem : ObservableObject
 }
 
 /// <summary>Мера в списке на вкладке «Модель».</summary>
-public sealed class MeasureItemViewModel(MeasureDefinition measure, Action<MeasureItemViewModel> remove)
+public sealed class MeasureItemViewModel(
+    MeasureDefinition measure, Action<MeasureItemViewModel> edit, Action<MeasureItemViewModel> remove)
 {
     public MeasureDefinition Measure { get; } = measure;
     public string Name => Measure.Name;
@@ -260,6 +261,7 @@ public sealed class MeasureItemViewModel(MeasureDefinition measure, Action<Measu
     public string Expression => Measure.Expression;
     public string Text => $"{Measure.Name} := {Measure.Expression}";
 
+    public void Edit() => edit(this);
     public void Remove() => remove(this);
 }
 

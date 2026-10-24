@@ -312,6 +312,25 @@ public sealed class DataModel
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    public void UpdateMeasure(MeasureDefinition measure, string name, string table, string expression)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new InvalidOperationException("Укажите имя меры.");
+        if (string.IsNullOrWhiteSpace(table))
+            throw new InvalidOperationException("Укажите таблицу меры.");
+        if (string.IsNullOrWhiteSpace(expression))
+            throw new InvalidOperationException("Укажите выражение меры.");
+        if (!Measures.Contains(measure))
+            throw new InvalidOperationException("Мера не найдена.");
+        if (Measures.Any(m => m != measure && string.Equals(m.Name, name, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"Мера «{name}» уже есть.");
+        MeasureParser.Parse(expression);
+        measure.Name = name.Trim();
+        measure.Table = table.Trim();
+        measure.Expression = expression.Trim();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
     public void RemoveMeasure(MeasureDefinition measure)
     {
         if (!Measures.Remove(measure))

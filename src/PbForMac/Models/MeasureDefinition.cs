@@ -1,9 +1,7 @@
-using System.Text.Json.Serialization;
-
 namespace PbForMac.Models;
 
 /// <summary>
-/// Именованная мера модели (упрощённый DAX): SUM, ссылка на меру, CALCULATE + KEEPFILTERS.
+/// Именованная мера модели (упрощённый DAX): агрегаты, арифметика, CALCULATE-модификаторы.
 /// </summary>
 public sealed class MeasureDefinition
 {
@@ -41,6 +39,44 @@ public static class MeasureRef
 /// <summary>Разобранное выражение меры (внутреннее AST).</summary>
 public abstract class MeasureExpr;
 
+public sealed class NumberExpr : MeasureExpr
+{
+    public double Value { get; init; }
+}
+
+public sealed class UnaryNegateExpr : MeasureExpr
+{
+    public MeasureExpr Inner { get; init; } = null!;
+}
+
+public enum MeasureBinaryOp
+{
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+}
+
+public sealed class BinaryExpr : MeasureExpr
+{
+    public MeasureExpr Left { get; init; } = null!;
+    public MeasureBinaryOp Op { get; init; }
+    public MeasureExpr Right { get; init; } = null!;
+}
+
+public sealed class DivideFnExpr : MeasureExpr
+{
+    public MeasureExpr Numerator { get; init; } = null!;
+    public MeasureExpr Denominator { get; init; } = null!;
+    public MeasureExpr? Alternate { get; init; }
+}
+
+public sealed class CountRowsExpr : MeasureExpr
+{
+    /// <summary>null — домашняя таблица меры.</summary>
+    public string? Table { get; init; }
+}
+
 public sealed class SumColumnExpr : MeasureExpr
 {
     public string? Table { get; init; }
@@ -62,12 +98,23 @@ public sealed class MeasureRefExpr : MeasureExpr
 public sealed class CalculateExpr : MeasureExpr
 {
     public MeasureExpr Inner { get; init; } = null!;
-    public List<KeepFiltersClause> KeepFilters { get; init; } = [];
+    public List<CalculateModifier> Modifiers { get; init; } = [];
 }
 
-public sealed class KeepFiltersClause
+public abstract class CalculateModifier;
+
+/// <summary>Фильтр Table[Col] = value; KeepExisting = KEEPFILTERS (пересечение), иначе замена.</summary>
+public sealed class FilterEqualsModifier : CalculateModifier
 {
+    public bool KeepExisting { get; init; }
     public string Table { get; init; } = "";
     public string Column { get; init; } = "";
     public string Value { get; init; } = "";
+}
+
+/// <summary>ALL / REMOVEFILTERS — снять фильтры с таблицы или столбца.</summary>
+public sealed class RemoveFiltersModifier : CalculateModifier
+{
+    public string Table { get; init; } = "";
+    public string? Column { get; init; }
 }
