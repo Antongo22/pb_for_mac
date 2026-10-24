@@ -26,6 +26,9 @@ public sealed class ReportDefinition
     /// <summary>Закладки: снимок срезов и активной страницы.</summary>
     public List<ReportBookmark> Bookmarks { get; set; } = [];
 
+    /// <summary>Именованные меры (упрощённый DAX).</summary>
+    public List<MeasureDefinition> Measures { get; set; } = [];
+
     /// <summary>Устаревшие плоские визуалы (v1); мигрируют в <see cref="Pages"/> при загрузке.</summary>
     public List<VisualDefinition> Visuals { get; set; } = [];
 

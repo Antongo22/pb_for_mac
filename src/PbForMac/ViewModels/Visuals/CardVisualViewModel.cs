@@ -17,7 +17,9 @@ public sealed partial class CardVisualViewModel : VisualViewModel
 
     public override string AutoTitle => Definition.ValueFields.Count == 0
         ? "Количество строк"
-        : $"{Aggregation.Label}: {FieldRef.Display(Definition.ValueFields[0])}";
+        : MeasureRef.IsMeasure(Definition.ValueFields[0])
+            ? MeasureRef.Display(Definition.ValueFields[0])
+            : $"{Aggregation.Label}: {FieldRef.Display(Definition.ValueFields[0])}";
 
     [ObservableProperty]
     private string _value = "";
@@ -34,8 +36,25 @@ public sealed partial class CardVisualViewModel : VisualViewModel
             return;
         }
 
+        var valueField = Definition.ValueFields.FirstOrDefault();
+        if (MeasureRef.TryParse(valueField, out var measureName))
+        {
+            try
+            {
+                var engine = new MeasureEngine(Owner.Model, Owner.Query);
+                var result = engine.Evaluate(measureName, Owner.ActiveFilters(this));
+                Value = ValueFormatter.Compact(result);
+                Caption = measureName;
+            }
+            catch (Exception e)
+            {
+                Message = e.Message;
+            }
+            return;
+        }
+
         var rows = GetRows(table).ToList();
-        if (Field(table, Definition.ValueFields.FirstOrDefault()) is not { } field)
+        if (Field(table, valueField) is not { } field)
         {
             Value = ValueFormatter.Compact(rows.Count);
             Caption = "строк";

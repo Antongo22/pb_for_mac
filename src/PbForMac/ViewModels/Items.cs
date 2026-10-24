@@ -251,6 +251,18 @@ public sealed partial class ReportPageItem : ObservableObject
     public void Select() => _select(this);
 }
 
+/// <summary>Мера в списке на вкладке «Модель».</summary>
+public sealed class MeasureItemViewModel(MeasureDefinition measure, Action<MeasureItemViewModel> remove)
+{
+    public MeasureDefinition Measure { get; } = measure;
+    public string Name => Measure.Name;
+    public string Table => Measure.Table;
+    public string Expression => Measure.Expression;
+    public string Text => $"{Measure.Name} := {Measure.Expression}";
+
+    public void Remove() => remove(this);
+}
+
 /// <summary>Закладка в списке отчёта.</summary>
 public sealed class ReportBookmarkItem(ReportBookmark bookmark, Action<ReportBookmarkItem> apply, Action<ReportBookmarkItem> remove)
 {

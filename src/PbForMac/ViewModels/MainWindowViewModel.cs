@@ -462,7 +462,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             Status = $"Открытие {Path.GetFileName(path)}…";
             var report = ReportSerializer.Load(path);
             Report.Clear();
-            var errors = Model.Load(report.Sources, report.Steps, report.Relationships, report.TableLayouts);
+            var errors = Model.Load(report.Sources, report.Steps, report.Relationships, report.TableLayouts, report.Measures);
             Report.LoadPages(report.Pages);
             Report.LoadBookmarks(report.Bookmarks);
             ReportPath = path;
@@ -513,6 +513,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 TableLayouts = Model.TableLayouts,
                 Pages = Report.GetPages(),
                 Bookmarks = Report.GetBookmarks(),
+                Measures = Model.Measures.Select(CloneMeasure).ToList(),
             }, path);
             ReportPath = path;
             Status = $"Сохранено: {path}";
@@ -618,4 +619,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         suggestedName = modelTable.TableName;
         return true;
     }
+
+    private static MeasureDefinition CloneMeasure(MeasureDefinition m) => new()
+    {
+        Id = m.Id,
+        Name = m.Name,
+        Table = m.Table,
+        Expression = m.Expression,
+    };
 }

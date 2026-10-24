@@ -20,6 +20,8 @@ public sealed class DataModel
     public List<RelationshipDefinition> Relationships { get; } = [];
     /// <summary>Позиции карточек таблиц на диаграмме связей.</summary>
     public List<TableLayoutDefinition> TableLayouts { get; } = [];
+    /// <summary>Именованные меры модели (упрощённый DAX).</summary>
+    public List<MeasureDefinition> Measures { get; } = [];
     public IReadOnlyList<DataTable> Tables => _tables;
     public IReadOnlyDictionary<TransformStep, string> StepErrors => _stepErrors;
 
@@ -266,17 +268,20 @@ public sealed class DataModel
 
     /// <summary>Заменяет содержимое модели (используется при открытии отчёта).</summary>
     public IReadOnlyList<string> Load(IEnumerable<DataSourceDefinition> sources, IEnumerable<TransformStep> steps,
-        IEnumerable<RelationshipDefinition>? relationships = null, IEnumerable<TableLayoutDefinition>? layouts = null)
+        IEnumerable<RelationshipDefinition>? relationships = null, IEnumerable<TableLayoutDefinition>? layouts = null,
+        IEnumerable<MeasureDefinition>? measures = null)
     {
         Sources.Clear();
         Steps.Clear();
         Relationships.Clear();
         TableLayouts.Clear();
+        Measures.Clear();
         _raw.Clear();
         Sources.AddRange(sources);
         Steps.AddRange(steps);
         Relationships.AddRange(relationships ?? []);
         TableLayouts.AddRange(layouts ?? []);
+        Measures.AddRange(measures ?? []);
         return Reload();
     }
 
@@ -286,8 +291,32 @@ public sealed class DataModel
         Steps.Clear();
         Relationships.Clear();
         TableLayouts.Clear();
+        Measures.Clear();
         _raw.Clear();
         Rebuild();
+    }
+
+    public void AddMeasure(MeasureDefinition measure)
+    {
+        if (string.IsNullOrWhiteSpace(measure.Name))
+            throw new InvalidOperationException("Укажите имя меры.");
+        if (string.IsNullOrWhiteSpace(measure.Table))
+            throw new InvalidOperationException("Укажите таблицу меры.");
+        if (string.IsNullOrWhiteSpace(measure.Expression))
+            throw new InvalidOperationException("Укажите выражение меры.");
+        if (Measures.Any(m => string.Equals(m.Name, measure.Name, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"Мера «{measure.Name}» уже есть.");
+        // Проверка синтаксиса.
+        MeasureParser.Parse(measure.Expression);
+        Measures.Add(measure);
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void RemoveMeasure(MeasureDefinition measure)
+    {
+        if (!Measures.Remove(measure))
+            return;
+        Changed?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>Пересобирает таблицы: копии исходных данных + все шаги по порядку.</summary>

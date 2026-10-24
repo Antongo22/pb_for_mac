@@ -70,6 +70,25 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
         "  IsNull([Скидка], 0)\n" +
         "Операторы: + - * / %  = <> < > <= >=  AND OR NOT  LIKE  IN";
 
+    public string MeasureHelp =>
+        "Упрощённый DAX (MVP):\n" +
+        "  Total Revenue := SUM(Sales[Revenue])\n" +
+        "  или SUM([Revenue]) на домашней таблице\n" +
+        "  Rev Brand Confecta :=\n" +
+        "    CALCULATE([Total Revenue], KEEPFILTERS(Products[Brand] = \"Confecta\"))\n" +
+        "Также: AVERAGE, COUNT, MIN, MAX, DISTINCTCOUNT.";
+
+    public ObservableCollection<MeasureItemViewModel> Measures { get; } = [];
+
+    [ObservableProperty]
+    private string? _measureName;
+
+    [ObservableProperty]
+    private string? _measureExpression;
+
+    public bool HasMeasures => Measures.Count > 0;
+
+
     [ObservableProperty]
     private string? _selectedTable;
 
@@ -262,6 +281,11 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
         }
         OnPropertyChanged(nameof(HasRelationships));
         RebuildDiagram();
+
+        Measures.Clear();
+        foreach (var measure in _model.Measures.OrderBy(m => m.Name))
+            Measures.Add(new MeasureItemViewModel(measure, item => _ = RemoveMeasureAsync(item)));
+        OnPropertyChanged(nameof(HasMeasures));
 
         if (RelationshipFromTable is null || !Tables.Contains(RelationshipFromTable))
             RelationshipFromTable = Tables.FirstOrDefault();
@@ -841,6 +865,36 @@ public sealed partial class TransformViewModel : ViewModelBase, IColumnHeaderAct
             CalcName = null;
             CalcExpression = null;
         }
+    }
+
+    [RelayCommand]
+    private void AddMeasure()
+    {
+        Error = null;
+        try
+        {
+            _model.AddMeasure(new MeasureDefinition
+            {
+                Name = MeasureName?.Trim() ?? "",
+                Table = SelectedTable ?? "",
+                Expression = MeasureExpression?.Trim() ?? "",
+            });
+            Info = $"Добавлена мера «{MeasureName?.Trim()}».";
+            MeasureName = null;
+            MeasureExpression = null;
+        }
+        catch (Exception e)
+        {
+            Error = e.Message;
+        }
+    }
+
+    private async Task RemoveMeasureAsync(MeasureItemViewModel item)
+    {
+        if (!await _dialogs.ConfirmAsync("Удалить меру", $"Удалить меру «{item.Name}»?"))
+            return;
+        _model.RemoveMeasure(item.Measure);
+        Info = $"Удалена мера «{item.Name}».";
     }
 
     [RelayCommand]

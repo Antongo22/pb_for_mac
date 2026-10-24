@@ -1,4 +1,5 @@
 using System.Data;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using LiveChartsCore;
 using LiveChartsCore.Defaults;
@@ -95,10 +96,28 @@ public sealed partial class ChartVisualViewModel : VisualViewModel
         }
 
         var category = RequireField(table, CategoryField);
+        if (Definition.ValueFields.Any(MeasureRef.IsMeasure))
+        {
+            // Меры на диаграммах: считаем по каждой категории с доп. фильтром.
+            var result = AggregateByMeasures(table, category);
+            if (result.Categories.Count == 0)
+            {
+                Message = "Нет данных";
+                return;
+            }
+            switch (Kind)
+            {
+                case VisualKind.Pie: BuildPie(result); break;
+                case VisualKind.Bar: BuildBar(result); break;
+                default: BuildCartesian(result); break;
+            }
+            return;
+        }
+
         var values = Definition.ValueFields.Select(f => Field(table, f)).OfType<ResolvedField>().ToList();
-        var result = QueryEngine.AggregateBy(GetRows(table), category, values,
+        var aggregated = QueryEngine.AggregateBy(GetRows(table), category, values,
             Aggregation.Value, Granularity.Value, Definition.TopN);
-        if (result.Categories.Count == 0)
+        if (aggregated.Categories.Count == 0)
         {
             Message = "Нет данных";
             return;
@@ -107,15 +126,86 @@ public sealed partial class ChartVisualViewModel : VisualViewModel
         switch (Kind)
         {
             case VisualKind.Pie:
-                BuildPie(result);
+                BuildPie(aggregated);
                 break;
             case VisualKind.Bar:
-                BuildBar(result);
+                BuildBar(aggregated);
                 break;
             default:
-                BuildCartesian(result);
+                BuildCartesian(aggregated);
                 break;
         }
+    }
+
+    private AggregatedResult AggregateByMeasures(DataTable table, ResolvedField category)
+    {
+        var engine = new MeasureEngine(Owner.Model, Owner.Query);
+        var outer = Owner.ActiveFilters(this).ToList();
+        var measureNames = Definition.ValueFields.Where(MeasureRef.IsMeasure).Select(f =>
+        {
+            MeasureRef.TryParse(f, out var name);
+            return name;
+        }).ToList();
+
+        var groups = GetRows(table)
+            .GroupBy(r => QueryEngine.CategoryKey(category.Get(r), Granularity.Value))
+            .Select(g =>
+            {
+                var key = g.Key;
+                var label = QueryEngine.CategoryLabel(key, Granularity.Value);
+                var catFilter = key is DBNull
+                    ? new FilterDefinition
+                    {
+                        Table = table.TableName,
+                        Column = category.Ref,
+                        Operator = FilterOperator.IsEmpty,
+                    }
+                    : new FilterDefinition
+                    {
+                        Table = table.TableName,
+                        Column = category.Ref,
+                        Operator = FilterOperator.Equals,
+                        Value = key switch
+                        {
+                            DateTime dt => dt.ToString("o", CultureInfo.InvariantCulture),
+                            IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
+                            _ => key.ToString(),
+                        },
+                    };
+                // Для дат Equals в Filter может ждать ru формат — используем значение из строки.
+                if (key is not DBNull)
+                {
+                    var raw = category.Get(g.First());
+                    catFilter.Value = raw switch
+                    {
+                        DateTime dt => dt.ToString("dd.MM.yyyy", CultureInfo.GetCultureInfo("ru-RU")),
+                        IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
+                        _ => raw?.ToString(),
+                    };
+                }
+
+                var context = outer.Append(catFilter);
+                var values = measureNames.Select(name =>
+                {
+                    try { return engine.Evaluate(name, context); }
+                    catch { return double.NaN; }
+                }).ToArray();
+                return (Key: key, Label: label, Values: values);
+            })
+            .ToList();
+
+        var categoryType = TypeInference.FromClr(category.DataType);
+        var ordered = categoryType is ColumnType.Date or ColumnType.Integer or ColumnType.Decimal
+            ? groups.OrderBy(g => g.Key, Comparer<object>.Create(QueryEngine.Compare)).ToList()
+            : groups.OrderByDescending(g => double.IsNaN(g.Values[0]) ? double.MinValue : g.Values[0]).ToList();
+
+        if (Definition.TopN > 0 && ordered.Count > Definition.TopN)
+            ordered = ordered.OrderByDescending(g => g.Values[0]).Take(Definition.TopN).ToList();
+
+        var series = Enumerable.Range(0, measureNames.Count)
+            .Select(i => ordered.Select(g => g.Values[i]).ToArray())
+            .ToList();
+        return new AggregatedResult(ordered.Select(g => g.Label).ToList(), measureNames, series);
     }
 
     private void BuildCartesian(AggregatedResult result)

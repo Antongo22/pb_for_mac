@@ -107,7 +107,8 @@ public abstract partial class VisualViewModel : ViewModelBase
         {
             var values = Definition.ValueFields.Count == 0
                 ? "Количество строк"
-                : $"{Aggregation.Label}: {string.Join(", ", Definition.ValueFields.Select(FieldRef.Display))}";
+                : string.Join(", ", Definition.ValueFields.Select(f =>
+                    MeasureRef.IsMeasure(f) ? MeasureRef.Display(f) : $"{Aggregation.Label}: {FieldRef.Display(f)}"));
             return CategoryField is null ? values : $"{values} по {FieldRef.Display(CategoryField)}";
         }
     }
@@ -184,14 +185,24 @@ public abstract partial class VisualViewModel : ViewModelBase
         foreach (var field in fields)
             CategoryOptions.Add(field.Ref);
 
-        // Числовые поля идут первыми — их чаще выбирают как значения.
+        // Числовые поля идут первыми — их чаще выбирают как значения; затем меры.
         ValueOptions.Clear();
         foreach (var field in fields.OrderBy(f => TypeInference.IsNumeric(TypeInference.FromClr(f.DataType)) ? 0 : 1))
             ValueOptions.Add(new CheckItem(field.Ref, Definition.ValueFields.Contains(field.Ref), OnValueFieldsChanged));
+        foreach (var measure in Owner.Model.Measures
+                     .Where(m => table is null || string.Equals(m.Table, table.TableName, StringComparison.OrdinalIgnoreCase))
+                     .OrderBy(m => m.Name))
+        {
+            var key = MeasureRef.Format(measure.Name);
+            ValueOptions.Add(new CheckItem(key, Definition.ValueFields.Contains(key), OnValueFieldsChanged));
+        }
 
         if (table is not null)
         {
-            Definition.ValueFields.RemoveAll(f => Field(table, f) is null);
+            Definition.ValueFields.RemoveAll(f =>
+                !MeasureRef.IsMeasure(f) && Field(table, f) is null
+                || MeasureRef.TryParse(f, out var measureName)
+                   && Owner.Model.Measures.All(m => !string.Equals(m.Name, measureName, StringComparison.OrdinalIgnoreCase)));
             if (CategoryField is not null && Field(table, CategoryField) is null)
                 CategoryField = null;
         }
@@ -338,12 +349,52 @@ public abstract partial class VisualViewModel : ViewModelBase
         return Field(table, columnName) is not null ? columnName : FieldRef.Format(tableName, columnName);
     }
 
+    /// <summary>Назначает меру в колодец значений.</summary>
+    public void AssignMeasure(string measureName)
+    {
+        var key = MeasureRef.Format(measureName);
+        var measure = Owner.Model.Measures.FirstOrDefault(m =>
+            string.Equals(m.Name, measureName, StringComparison.OrdinalIgnoreCase));
+        if (measure is not null && !string.Equals(Table, measure.Table, StringComparison.OrdinalIgnoreCase))
+            Table = measure.Table;
+
+        if (!ShowsValues)
+        {
+            if (ShowsCategory && CategoryField is null)
+                return;
+        }
+
+        var option = ValueOptions.FirstOrDefault(o => string.Equals(o.Name, key, StringComparison.OrdinalIgnoreCase));
+        if (option is not null)
+        {
+            option.IsChecked = true;
+            return;
+        }
+        if (!Definition.ValueFields.Contains(key))
+        {
+            Definition.ValueFields.Add(key);
+            UpdateFieldOptions();
+            Refresh();
+        }
+    }
+
     /// <summary>
     /// Назначает поле из панели «Поля»: категория, если пуста, иначе значение.
     /// При другой таблице — переключает визуал на неё.
     /// </summary>
     public void AssignField(string tableName, string columnName)
     {
+        if (string.Equals(tableName, MeasureRef.PaneTable, StringComparison.OrdinalIgnoreCase))
+        {
+            AssignMeasure(MeasureRef.TryParse(columnName, out var fromPane) ? fromPane : columnName);
+            return;
+        }
+        if (MeasureRef.TryParse(columnName, out var measureName))
+        {
+            AssignMeasure(measureName);
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(tableName) || string.IsNullOrWhiteSpace(columnName))
             return;
 

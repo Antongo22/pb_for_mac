@@ -220,6 +220,47 @@
             </ScrollViewer>
           </TabItem>
 
+          <TabItem Header="Меры">
+            <ScrollViewer>
+              <StackPanel Spacing="8" MaxWidth="720" HorizontalAlignment="Left">
+                <TextBlock Classes="hint"
+                           Text="Именованные меры (упрощённый DAX). Домашняя таблица — выбранная слева. Используйте на карточке и диаграммах как значение." />
+                <TextBlock Classes="caption" Text="Имя меры" />
+                <TextBox Text="{Binding MeasureName}" Watermark="Total Revenue" />
+                <TextBlock Classes="caption" Text="Выражение" />
+                <TextBox Text="{Binding MeasureExpression}" AcceptsReturn="True" MinHeight="90"
+                         TextWrapping="Wrap" FontFamily="Menlo, Consolas, monospace"
+                         Watermark="SUM([Revenue]) или CALCULATE([Total Revenue], KEEPFILTERS(Products[Brand] = &quot;Confecta&quot;))" />
+                <Button Classes="accent" Content="Добавить меру" Command="{Binding AddMeasureCommand}" HorizontalAlignment="Left" />
+                <Border Classes="info" Margin="0,8,0,0">
+                  <TextBlock Text="{Binding MeasureHelp}" FontFamily="Menlo, Consolas, monospace" FontSize="12" />
+                </Border>
+                <Rectangle Height="1" Fill="{DynamicResource DividerBrush}" Margin="0,12,0,8" />
+                <TextBlock Classes="caption" Text="Меры модели" FontWeight="SemiBold" />
+                <TextBlock Classes="hint" IsVisible="{Binding !HasMeasures}" Text="Пока нет мер." />
+                <ItemsControl ItemsSource="{Binding Measures}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:MeasureItemViewModel">
+                      <Border Classes="chip" HorizontalAlignment="Stretch" Margin="0,0,0,6" CornerRadius="4">
+                        <Grid ColumnDefinitions="*,Auto">
+                          <StackPanel>
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" />
+                            <TextBlock Text="{Binding Table}" FontSize="10" Foreground="{DynamicResource SubtleTextBrush}" />
+                            <TextBlock Text="{Binding Expression}" FontSize="11" FontFamily="Menlo, Consolas, monospace"
+                                       TextWrapping="Wrap" Margin="0,4,0,0" />
+                          </StackPanel>
+                          <Button Grid.Column="1" Classes="icon" Command="{Binding Remove}" ToolTip.Tip="Удалить">
+                            <PathIcon Data="{StaticResource IconClose}" />
+                          </Button>
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </ScrollViewer>
+          </TabItem>
+
           <TabItem Header="Группировка">
             <ScrollViewer>
               <Grid ColumnDefinitions="*,24,*" MaxWidth="820" HorizontalAlignment="Left">

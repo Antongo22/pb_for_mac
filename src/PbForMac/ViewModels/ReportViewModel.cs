@@ -179,6 +179,14 @@ public sealed partial class ReportViewModel : ViewModelBase
                 .Select(c => new FieldColumnItem(table.TableName, c.ColumnName, TypeInference.FromClr(c.DataType), AssignFieldFromPane));
             FieldTables.Add(new FieldTableNode(table.TableName, columns));
         }
+
+        if (Model.Measures.Count > 0)
+        {
+            var measures = Model.Measures
+                .OrderBy(m => m.Name)
+                .Select(m => new FieldColumnItem(MeasureRef.PaneTable, m.Name, ColumnType.Decimal, AssignFieldFromPane));
+            FieldTables.Add(new FieldTableNode(MeasureRef.PaneTable, measures));
+        }
     }
 
     /// <summary>Клик по полю в панели «Поля» — назначает его выбранному визуалу.</summary>
