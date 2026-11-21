@@ -1,5 +1,8 @@
 using System.Collections.ObjectModel;
 using System.Data;
+using Avalonia;
+using Avalonia.Layout;
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PbForMac.Models;
@@ -33,6 +36,20 @@ public abstract partial class VisualViewModel : ViewModelBase
         _topN = definition.TopN;
         _showLegend = definition.ShowLegend;
         _showDataLabels = definition.ShowDataLabels;
+        _text = definition.Text;
+        _fill = definition.Fill;
+        _stroke = definition.Stroke;
+        _foreground = definition.Foreground;
+        _strokeThickness = definition.StrokeThickness;
+        _cornerRadius = definition.CornerRadius;
+        _padding = definition.Padding;
+        _fontSize = definition.FontSize <= 0 ? 14 : definition.FontSize;
+        _bold = definition.Bold;
+        _showTitle = definition.ShowTitle;
+        _shape = Labels.Find(definition.Shape);
+        _align = Labels.Find(definition.Align);
+        _action = Labels.Find(definition.Action);
+        _actionTarget = definition.ActionTarget;
         UpdateFieldOptions();
         _loading = false;
     }
@@ -96,7 +113,100 @@ public abstract partial class VisualViewModel : ViewModelBase
     [ObservableProperty]
     private bool _showDataLabels;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AutoTitle))]
+    [NotifyPropertyChangedFor(nameof(DisplayTitle))]
+    private string _text = "";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EffectiveFill))]
+    private string? _fill;
+
+    [ObservableProperty]
+    private string? _stroke;
+
+    [ObservableProperty]
+    private string? _foreground;
+
+    [ObservableProperty]
+    private double _strokeThickness = 1;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EffectiveRadius))]
+    private double _cornerRadius = 4;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PaddingThickness))]
+    [NotifyPropertyChangedFor(nameof(ContentMargin))]
+    private double _padding = 8;
+
+    [ObservableProperty]
+    private double _fontSize = 14;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TextWeight))]
+    private bool _bold;
+
+    [ObservableProperty]
+    private bool _showTitle = true;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsEllipse))]
+    [NotifyPropertyChangedFor(nameof(IsTriangle))]
+    [NotifyPropertyChangedFor(nameof(IsLine))]
+    [NotifyPropertyChangedFor(nameof(IsFreeform))]
+    [NotifyPropertyChangedFor(nameof(EffectiveFill))]
+    [NotifyPropertyChangedFor(nameof(EffectiveStroke))]
+    [NotifyPropertyChangedFor(nameof(EffectiveRadius))]
+    private Option<ShapeKind> _shape = Labels.Shapes[1];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TextHorizontal))]
+    [NotifyPropertyChangedFor(nameof(BlockAlignment))]
+    private Option<DesignAlign> _align = Labels.Alignments[0];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsActionTarget))]
+    private Option<DesignAction> _action = Labels.DesignActions[0];
+
+    [ObservableProperty]
+    private string? _actionTarget;
+
     public bool HasMessage => Message is not null;
+
+    public bool IsDesign => Kind is VisualKind.Shape or VisualKind.Text or VisualKind.Button;
+    public bool IsShape => Kind == VisualKind.Shape;
+    public bool IsButton => Kind == VisualKind.Button;
+    public bool IsTextBlock => Kind == VisualKind.Text;
+    public bool IsEllipse => IsShape && Shape.Value == ShapeKind.Ellipse;
+    public bool IsTriangle => IsShape && Shape.Value == ShapeKind.Triangle;
+    public bool IsLine => IsShape && Shape.Value == ShapeKind.Line;
+    public bool IsFreeform => IsEllipse || IsTriangle || IsLine;
+    public bool ShowsActionTarget => IsButton && Action.Value is DesignAction.GoToPage or DesignAction.ApplyBookmark;
+
+    public string? EffectiveFill => IsFreeform ? "transparent" : Fill;
+    public double EffectiveStroke => IsFreeform ? 0 : StrokeThickness;
+    public double EffectiveRadius => IsFreeform ? 0 : CornerRadius;
+
+    public Thickness PaddingThickness => new(Math.Max(0, Padding));
+    public Thickness ContentMargin => IsDesign ? PaddingThickness : new Thickness(8, 4, 8, 8);
+    public FontWeight TextWeight => Bold ? FontWeight.SemiBold : FontWeight.Normal;
+    public HorizontalAlignment TextHorizontal => Align.Value switch
+    {
+        DesignAlign.Center => HorizontalAlignment.Center,
+        DesignAlign.Right => HorizontalAlignment.Right,
+        _ => HorizontalAlignment.Left,
+    };
+    public TextAlignment BlockAlignment => Align.Value switch
+    {
+        DesignAlign.Center => TextAlignment.Center,
+        DesignAlign.Right => TextAlignment.Right,
+        _ => TextAlignment.Left,
+    };
+
+    public IReadOnlyList<Option<ShapeKind>> Shapes => Labels.Shapes;
+    public IReadOnlyList<Option<DesignAlign>> Alignments => Labels.Alignments;
+    public IReadOnlyList<Option<DesignAction>> DesignActions => Labels.DesignActions;
 
     public string DisplayTitle => string.IsNullOrWhiteSpace(Title) ? AutoTitle : Title;
 
@@ -122,6 +232,7 @@ public abstract partial class VisualViewModel : ViewModelBase
     public virtual bool ShowsAggregation => true;
     public virtual bool ShowsTopN => true;
     public virtual bool ShowsFormatting => false;
+    public bool ShowsDataFields => !IsDesign;
 
     public bool ShowsGranularity =>
         ShowsCategory && Kind != VisualKind.Scatter && GetTable() is { } table
@@ -161,7 +272,7 @@ public abstract partial class VisualViewModel : ViewModelBase
             $"Поле «{reference}» недоступно: нет такого столбца или связи с таблицей «{table.TableName}».");
 
     /// <summary>Вызывается при изменении модели данных: обновляет списки полей и данные.</summary>
-    public void OnModelChanged()
+    public virtual void OnModelChanged()
     {
         _loading = true;
         if (Table is not null && Owner.Model.GetTable(Table) is null)
@@ -286,6 +397,80 @@ public abstract partial class VisualViewModel : ViewModelBase
     {
         Definition.ShowDataLabels = value;
         if (!_loading) Refresh();
+    }
+
+    partial void OnTextChanged(string value)
+    {
+        Definition.Text = value;
+        if (!_loading) OnPropertyChanged(nameof(DisplayTitle));
+    }
+
+    partial void OnFillChanged(string? value) => Definition.Fill = value;
+    partial void OnStrokeChanged(string? value) => Definition.Stroke = value;
+    partial void OnForegroundChanged(string? value) => Definition.Foreground = value;
+    partial void OnStrokeThicknessChanged(double value) => Definition.StrokeThickness = value;
+    partial void OnCornerRadiusChanged(double value) => Definition.CornerRadius = value;
+    partial void OnPaddingChanged(double value) => Definition.Padding = value;
+    partial void OnFontSizeChanged(double value) => Definition.FontSize = value;
+    partial void OnBoldChanged(bool value) => Definition.Bold = value;
+    partial void OnShowTitleChanged(bool value) => Definition.ShowTitle = value;
+    partial void OnActionTargetChanged(string? value) => Definition.ActionTarget = value;
+
+    partial void OnShapeChanged(Option<ShapeKind> value)
+    {
+        Definition.Shape = value.Value;
+        if (_loading || !IsShape)
+            return;
+        if (value.Value == ShapeKind.Line && Height > 48)
+            Height = 28;
+        if (value.Value == ShapeKind.Rounded && CornerRadius < 8)
+            CornerRadius = 12;
+    }
+
+    partial void OnAlignChanged(Option<DesignAlign> value) => Definition.Align = value.Value;
+
+    partial void OnActionChanged(Option<DesignAction> value) => Definition.Action = value.Value;
+
+    [RelayCommand]
+    private void SetFill(string? hex)
+    {
+        if (!string.IsNullOrWhiteSpace(hex))
+            Fill = hex;
+    }
+
+    [RelayCommand]
+    private void ApplyLook(string? look)
+    {
+        switch (look)
+        {
+            case "light":
+                Fill = "#FFFFFF";
+                Stroke = "#E1DFDD";
+                StrokeThickness = 1;
+                CornerRadius = 8;
+                Foreground = "#201F1E";
+                break;
+            case "accent":
+                Fill = "#118DFF";
+                Stroke = "#0F6CBD";
+                StrokeThickness = 0;
+                CornerRadius = 8;
+                Foreground = "#FFFFFF";
+                Bold = true;
+                break;
+            case "dark":
+                Fill = "#252423";
+                Stroke = "#3B3A39";
+                StrokeThickness = 1;
+                CornerRadius = 8;
+                Foreground = "#F3F2F1";
+                break;
+            case "clear":
+                Fill = "transparent";
+                StrokeThickness = 0;
+                CornerRadius = 0;
+                break;
+        }
     }
 
     public void ClearCategory() => CategoryField = null;

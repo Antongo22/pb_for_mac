@@ -10,9 +10,8 @@ namespace PbForMac.Views;
 /// <summary>Плитка визуала: выделение по клику, перемещение за заголовок, изменение размера за уголок.</summary>
 public partial class VisualTileView : UserControl
 {
-    private const double SnapStep = 10;
-    private const double MinTileWidth = 160;
-    private const double MinTileHeight = 100;
+    private const double MinDataWidth = 160;
+    private const double MinDataHeight = 100;
 
     private enum DragMode { None, Move, Resize }
 
@@ -25,8 +24,10 @@ public partial class VisualTileView : UserControl
         InitializeComponent();
         // handledEventsToo: графики сами обрабатывают нажатия, но выделять плитку всё равно нужно.
         AddHandler(PointerPressedEvent, OnAnyPointerPressed, RoutingStrategies.Bubble, handledEventsToo: true);
-        Header.PointerPressed += (s, e) => BeginDrag(DragMode.Move, e);
-        Grip.PointerPressed += (s, e) => BeginDrag(DragMode.Resize, e);
+        Header.PointerPressed += (_, e) => BeginDrag(DragMode.Move, e);
+        DragHandle.PointerPressed += (_, e) => BeginDrag(DragMode.Move, e);
+        Grip.PointerPressed += (_, e) => BeginDrag(DragMode.Resize, e);
+        AddHandler(PointerPressedEvent, OnDesignBodyPressed, RoutingStrategies.Tunnel);
         PointerMoved += OnPointerMoved;
         PointerReleased += (_, _) => _mode = DragMode.None;
         PointerCaptureLost += (_, _) => _mode = DragMode.None;
@@ -51,6 +52,18 @@ public partial class VisualTileView : UserControl
         source is Visual visual && visual.GetSelfAndVisualAncestors()
             .TakeWhile(v => v != this)
             .Any(v => v is InputElement { Focusable: true });
+
+    private void OnDesignBodyPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (ViewModel is not { IsDesign: true, IsButton: false } || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            return;
+        if (IsGrip(e.Source) || e.Source is Visual source && source.FindAncestorOfType<Button>(includeSelf: true) is not null)
+            return;
+        BeginDrag(DragMode.Move, e);
+    }
+
+    private bool IsGrip(object? source) =>
+        source is Visual visual && visual.GetSelfAndVisualAncestors().Any(v => ReferenceEquals(v, Grip));
 
     private void BeginDrag(DragMode mode, PointerPressedEventArgs e)
     {
@@ -79,10 +92,18 @@ public partial class VisualTileView : UserControl
         }
         else
         {
-            vm.Width = Math.Max(MinTileWidth, Snap(_startRect.Width + delta.X));
-            vm.Height = Math.Max(MinTileHeight, Snap(_startRect.Height + delta.Y));
+            var minW = vm.IsDesign ? 32 : MinDataWidth;
+            var minH = vm.IsDesign ? 20 : MinDataHeight;
+            vm.Width = Math.Max(minW, Snap(_startRect.Width + delta.X));
+            vm.Height = Math.Max(minH, Snap(_startRect.Height + delta.Y));
         }
     }
 
-    private static double Snap(double value) => Math.Round(value / SnapStep) * SnapStep;
+    private double Snap(double value)
+    {
+        var step = ViewModel?.Owner.SnapStep ?? 10;
+        if (step < 1)
+            return value;
+        return Math.Round(value / step) * step;
+    }
 }

@@ -82,6 +82,33 @@ public static class Labels
         new(VisualKind.Table, "Таблица"),
         new(VisualKind.Matrix, "Матрица"),
         new(VisualKind.Slicer, "Срез"),
+        new(VisualKind.Shape, "Фигура"),
+        new(VisualKind.Text, "Текст"),
+        new(VisualKind.Button, "Кнопка"),
+    ];
+
+    public static readonly IReadOnlyList<Option<ShapeKind>> Shapes =
+    [
+        new(ShapeKind.Rectangle, "Прямоугольник"),
+        new(ShapeKind.Rounded, "Скруглённый"),
+        new(ShapeKind.Ellipse, "Эллипс"),
+        new(ShapeKind.Triangle, "Треугольник"),
+        new(ShapeKind.Line, "Линия"),
+    ];
+
+    public static readonly IReadOnlyList<Option<DesignAlign>> Alignments =
+    [
+        new(DesignAlign.Left, "Слева"),
+        new(DesignAlign.Center, "По центру"),
+        new(DesignAlign.Right, "Справа"),
+    ];
+
+    public static readonly IReadOnlyList<Option<DesignAction>> DesignActions =
+    [
+        new(DesignAction.None, "Без действия"),
+        new(DesignAction.GoToPage, "Перейти на страницу"),
+        new(DesignAction.ApplyBookmark, "Применить закладку"),
+        new(DesignAction.ResetSlicers, "Сбросить срезы"),
     ];
 
     public static string Of<T>(T value) where T : struct, Enum => Find(value).Label;
@@ -98,6 +125,9 @@ public static class Labels
             RelationshipCardinality => (IEnumerable<Option<T>>)Cardinalities,
             FilterDirection => (IEnumerable<Option<T>>)FilterDirections,
             VisualKind => (IEnumerable<Option<T>>)VisualKinds,
+            ShapeKind => (IEnumerable<Option<T>>)Shapes,
+            DesignAlign => (IEnumerable<Option<T>>)Alignments,
+            DesignAction => (IEnumerable<Option<T>>)DesignActions,
             _ => [],
         };
         return list.FirstOrDefault(o => EqualityComparer<T>.Default.Equals(o.Value, value))

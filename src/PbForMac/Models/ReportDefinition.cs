@@ -6,6 +6,14 @@ public sealed class ReportPage
     public string Name { get; set; } = "Страница 1";
     public List<VisualDefinition> Visuals { get; set; } = [];
     public List<FilterDefinition> Filters { get; set; } = [];
+    /// <summary>Фон страницы, #RRGGBB. Пусто — цвет темы.</summary>
+    public string? Background { get; set; }
+    public double CanvasWidth { get; set; } = 1280;
+    public double CanvasHeight { get; set; } = 760;
+    /// <summary>Шаг сетки при перетаскивании, px.</summary>
+    public double GridStep { get; set; } = 10;
+    /// <summary>Поле страницы, px.</summary>
+    public double Gap { get; set; } = 20;
 }
 
 /// <summary>Файл отчёта (*.pbm): источники, шаги преобразований, визуалы и фильтры.</summary>

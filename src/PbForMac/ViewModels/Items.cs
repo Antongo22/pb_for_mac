@@ -247,6 +247,11 @@ public sealed partial class ReportPageItem : ObservableObject
 
     public List<VisualDefinition> Visuals { get; set; } = [];
     public List<FilterDefinition> Filters { get; set; } = [];
+    public string? Background { get; set; }
+    public double CanvasWidth { get; set; } = 1280;
+    public double CanvasHeight { get; set; } = 760;
+    public double GridStep { get; set; } = 10;
+    public double Gap { get; set; } = 20;
 
     public void Select() => _select(this);
 }

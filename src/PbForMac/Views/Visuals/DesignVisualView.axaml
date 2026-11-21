@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vis="using:PbForMac.ViewModels.Visuals"
+             x:Class="PbForMac.Views.Visuals.DesignVisualView"
+             x:DataType="vis:DesignVisualViewModel">
+  <Grid>
+    <Ellipse IsVisible="{Binding IsEllipse}"
+             Fill="{Binding Fill, Converter={StaticResource HexBrush}}"
+             Stroke="{Binding Stroke, Converter={StaticResource HexBrush}, ConverterParameter=DividerBrush}"
+             StrokeThickness="{Binding StrokeThickness}" />
+    <Path IsVisible="{Binding IsTriangle}" Stretch="Fill" Data="M50,2 L98,98 L2,98 Z"
+          Fill="{Binding Fill, Converter={StaticResource HexBrush}}"
+          Stroke="{Binding Stroke, Converter={StaticResource HexBrush}, ConverterParameter=DividerBrush}"
+          StrokeThickness="{Binding StrokeThickness}" />
+    <Rectangle IsVisible="{Binding IsLine}" Height="{Binding StrokeThickness}" MinHeight="2"
+               VerticalAlignment="Center"
+               Fill="{Binding Stroke, Converter={StaticResource HexBrush}, ConverterParameter=BodyTextBrush}" />
+
+    <TextBlock Text="{Binding Text}" IsVisible="{Binding !IsButton}"
+               IsHitTestVisible="False"
+               TextWrapping="Wrap"
+               FontSize="{Binding FontSize}"
+               FontWeight="{Binding TextWeight}"
+               HorizontalAlignment="{Binding TextHorizontal}"
+               VerticalAlignment="Center"
+               TextAlignment="{Binding BlockAlignment}"
+               Margin="{Binding PaddingThickness}"
+               Foreground="{Binding Foreground, Converter={StaticResource HexBrush}, ConverterParameter=BodyTextBrush}" />
+
+    <Button Classes="canvas" IsVisible="{Binding IsButton}" Command="{Binding InvokeCommand}"
+            HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+            HorizontalContentAlignment="{Binding TextHorizontal}">
+      <TextBlock Text="{Binding Text}" TextWrapping="Wrap"
+                 FontSize="{Binding FontSize}" FontWeight="{Binding TextWeight}"
+                 Foreground="{Binding Foreground, Converter={StaticResource HexBrush}, ConverterParameter=BodyTextBrush}" />
+    </Button>
+  </Grid>
+</UserControl>

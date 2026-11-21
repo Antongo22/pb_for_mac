@@ -5,31 +5,46 @@
              x:DataType="vis:VisualViewModel"
              Width="{Binding Width}" Height="{Binding Height}">
 
-  <Border Classes="tile" Classes.selected="{Binding IsSelected}">
-    <Grid RowDefinitions="Auto,*">
-      <!-- Заголовок: за него плитку можно перетаскивать -->
-      <Grid x:Name="Header" ColumnDefinitions="*,Auto" Background="Transparent" Cursor="SizeAll" Margin="10,6,4,0">
-        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontSize="13"
-                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip.Tip="{Binding DisplayTitle}" />
-        <StackPanel Grid.Column="1" Classes="tileActions" Orientation="Horizontal" Cursor="Arrow">
-          <Button Classes="icon" Command="{Binding Duplicate}" ToolTip.Tip="Дублировать">
-            <PathIcon Data="{StaticResource IconCopy}" />
-          </Button>
-          <Button Classes="icon" Command="{Binding DeleteCommand}" ToolTip.Tip="Удалить">
-            <PathIcon Data="{StaticResource IconDelete}" />
-          </Button>
-        </StackPanel>
+  <Border Classes="tile" Classes.selected="{Binding IsSelected}"
+          Background="{Binding EffectiveFill, Converter={StaticResource HexBrush}, ConverterParameter=PageBrush}"
+          BorderBrush="{Binding Stroke, Converter={StaticResource HexBrush}, ConverterParameter=DividerBrush}"
+          BorderThickness="{Binding EffectiveStroke, Converter={StaticResource DoubleThickness}}"
+          CornerRadius="{Binding EffectiveRadius, Converter={StaticResource DoubleCorner}}">
+    <Grid>
+      <Grid RowDefinitions="Auto,*">
+        <Grid x:Name="Header" ColumnDefinitions="*,Auto" Background="Transparent" Cursor="SizeAll"
+              MinHeight="28" Margin="10,6,4,0" IsVisible="{Binding !IsDesign}">
+          <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontSize="13"
+                     IsVisible="{Binding ShowTitle}"
+                     Foreground="{Binding Foreground, Converter={StaticResource HexBrush}, ConverterParameter=BodyTextBrush}"
+                     TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip.Tip="{Binding DisplayTitle}" />
+        </Grid>
+
+        <ContentControl Grid.Row="1" Content="{Binding}" Margin="{Binding ContentMargin}" IsVisible="{Binding !HasMessage}" />
+
+        <TextBlock Grid.Row="1" Text="{Binding Message}" IsVisible="{Binding HasMessage}" Classes="hint"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Margin="16" />
+
+        <Path x:Name="Grip" Grid.Row="1" Width="12" Height="12" Margin="0,0,2,2"
+              HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="BottomRightCorner"
+              Fill="#8A8886" Opacity="0.6" Data="M12,0 L12,12 L0,12 Z" />
       </Grid>
 
-      <ContentControl Grid.Row="1" Content="{Binding}" Margin="8,4,8,8" IsVisible="{Binding !HasMessage}" />
+      <Border x:Name="DragHandle" Height="14" VerticalAlignment="Top" Background="Transparent" Cursor="SizeAll"
+              IsVisible="{Binding IsDesign}" />
 
-      <TextBlock Grid.Row="1" Text="{Binding Message}" IsVisible="{Binding HasMessage}" Classes="hint"
-                 HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Margin="16" />
+      <StackPanel Classes="tileActions" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top"
+                  Margin="0,2,2,0" Cursor="Arrow">
+        <Button Classes="icon" Command="{Binding Duplicate}" ToolTip.Tip="Дублировать">
+          <PathIcon Data="{StaticResource IconCopy}" />
+        </Button>
+        <Button Classes="icon" Command="{Binding DeleteCommand}" ToolTip.Tip="Удалить">
+          <PathIcon Data="{StaticResource IconDelete}" />
+        </Button>
+      </StackPanel>
 
-      <!-- Уголок для изменения размера -->
-      <Path x:Name="Grip" Grid.Row="1" Width="12" Height="12" Margin="0,0,2,2"
-            HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="BottomRightCorner"
-            Fill="#8A8886" Opacity="0.6" Data="M12,0 L12,12 L0,12 Z" />
+      <Rectangle IsHitTestVisible="False" IsVisible="{Binding IsSelected}" Stroke="#118DFF" StrokeThickness="2"
+                 Fill="Transparent" RadiusX="{Binding EffectiveRadius}" RadiusY="{Binding EffectiveRadius}" />
     </Grid>
   </Border>
 </UserControl>

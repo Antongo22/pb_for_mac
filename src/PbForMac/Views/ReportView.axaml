@@ -125,7 +125,8 @@
         <Panel>
       <Border x:Name="Board"
               Width="{Binding BoardWidth}" Height="{Binding BoardHeight}"
-              Background="{DynamicResource PageBrush}" BoxShadow="0 1 4 0 #33000000">
+              Background="{Binding PageBackground, Converter={StaticResource HexBrush}, ConverterParameter=PageBrush}"
+              BoxShadow="0 1 4 0 #33000000">
         <Grid>
           <ItemsControl ItemsSource="{Binding Visuals}">
             <ItemsControl.ItemsPanel>
@@ -196,8 +197,21 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
-          <TextBlock Classes="hint" IsVisible="{Binding !HasSelection}" Text="Нажмите на тип, чтобы добавить визуал." />
-          <TextBlock Classes="hint" IsVisible="{Binding HasSelection}" Text="Визуал выбран: нажатие на тип изменит его вид." />
+          <TextBlock Classes="caption" Text="Оформление" Margin="0,10,0,4" />
+          <ItemsControl ItemsSource="{Binding DesignKinds}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:VisualKindItem">
+                <Button Classes="visualKind" Command="{Binding Add}" ToolTip.Tip="{Binding Label}">
+                  <PathIcon Data="{Binding Icon}" />
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock Classes="hint" IsVisible="{Binding !HasSelection}" Text="Фигура, текст и кнопка добавляются на страницу. Остальные типы — визуалы данных." />
+          <TextBlock Classes="hint" IsVisible="{Binding HasSelection}" Text="Тип данных меняет выбранный визуал. Фигура, текст и кнопка всегда добавляются отдельно." />
 
           <!-- Поля выбранного визуала -->
           <ContentControl Content="{Binding SelectedVisual}" IsVisible="{Binding HasSelection}" Margin="0,12,0,0">
@@ -209,12 +223,47 @@
                     <TextBlock Classes="paneHeader" Text="Области полей" />
                     <TextBlock Grid.Column="1" Classes="hint" Text="{Binding KindLabel}" />
                   </Grid>
-                  <TextBlock Classes="hint" Margin="0,0,0,6"
+                  <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
+                    <Button Command="{Binding Duplicate}">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="{StaticResource IconCopy}" Width="12" Height="12" />
+                        <TextBlock Text="Дублировать" />
+                      </StackPanel>
+                    </Button>
+                    <Button Command="{Binding DeleteCommand}">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="{StaticResource IconDelete}" Width="12" Height="12" />
+                        <TextBlock Text="Удалить" />
+                      </StackPanel>
+                    </Button>
+                  </StackPanel>
+                  <TextBlock Classes="hint" Margin="0,0,0,6" IsVisible="{Binding !IsDesign}"
                              Text="Перетащите поле из панели слева в колодец или выберите из списка." />
 
-                  <TextBlock Classes="caption" Text="Заголовок" />
-                  <TextBox Text="{Binding Title}" Watermark="{Binding AutoTitle}" />
+                  <StackPanel IsVisible="{Binding !IsDesign}">
+                    <TextBlock Classes="caption" Text="Заголовок" />
+                    <TextBox Text="{Binding Title}" Watermark="{Binding AutoTitle}" />
+                  </StackPanel>
 
+                  <StackPanel IsVisible="{Binding IsDesign}" Margin="0,4,0,0">
+                    <TextBlock Classes="caption" Text="Текст" />
+                    <TextBox Text="{Binding Text}" AcceptsReturn="True" MinHeight="56" TextWrapping="Wrap"
+                             Watermark="Подпись на фигуре, кнопке или текстовом блоке" />
+                    <StackPanel IsVisible="{Binding IsShape}">
+                      <TextBlock Classes="caption" Text="Форма" />
+                      <ComboBox ItemsSource="{Binding Shapes}" SelectedItem="{Binding Shape}" />
+                    </StackPanel>
+                    <TextBlock Classes="caption" Text="Выравнивание" />
+                    <ComboBox ItemsSource="{Binding Alignments}" SelectedItem="{Binding Align}" />
+                    <StackPanel IsVisible="{Binding IsButton}">
+                      <TextBlock Classes="caption" Text="Действие" />
+                      <ComboBox ItemsSource="{Binding DesignActions}" SelectedItem="{Binding Action}" />
+                      <TextBox Text="{Binding ActionTarget}" IsVisible="{Binding ShowsActionTarget}"
+                               Watermark="Имя страницы или закладки" />
+                    </StackPanel>
+                  </StackPanel>
+
+                  <StackPanel IsVisible="{Binding ShowsDataFields}">
                   <TextBlock Classes="caption" Text="Таблица" />
                   <ComboBox ItemsSource="{Binding TableNames}" SelectedItem="{Binding Table}" />
 
@@ -283,25 +332,115 @@
                     <CheckBox Content="Показывать легенду" IsChecked="{Binding ShowLegend}" FontSize="12" />
                     <CheckBox Content="Подписи данных" IsChecked="{Binding ShowDataLabels}" FontSize="12" />
                   </StackPanel>
+                  </StackPanel>
 
-                  <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,12,0,0">
-                    <Button Command="{Binding Duplicate}">
-                      <StackPanel Orientation="Horizontal" Spacing="6">
-                        <PathIcon Data="{StaticResource IconCopy}" Width="12" Height="12" />
-                        <TextBlock Text="Дублировать" />
-                      </StackPanel>
-                    </Button>
-                    <Button Command="{Binding DeleteCommand}">
-                      <StackPanel Orientation="Horizontal" Spacing="6">
-                        <PathIcon Data="{StaticResource IconDelete}" Width="12" Height="12" />
-                        <TextBlock Text="Удалить" />
-                      </StackPanel>
-                    </Button>
+                  <Rectangle Height="1" Fill="{DynamicResource DividerBrush}" Margin="0,12,0,8" />
+                  <TextBlock Classes="paneHeader" Text="Оформление" />
+                  <WrapPanel>
+                    <Button Classes="flat" Content="Светлая" Margin="0,0,4,4" Command="{Binding ApplyLookCommand}" CommandParameter="light" />
+                    <Button Classes="flat" Content="Акцент" Margin="0,0,4,4" Command="{Binding ApplyLookCommand}" CommandParameter="accent" />
+                    <Button Classes="flat" Content="Тёмная" Margin="0,0,4,4" Command="{Binding ApplyLookCommand}" CommandParameter="dark" />
+                    <Button Classes="flat" Content="Прозрачная" Margin="0,0,4,4" Command="{Binding ApplyLookCommand}" CommandParameter="clear" />
+                  </WrapPanel>
+                  <WrapPanel Margin="0,4,0,0">
+                    <Button Classes="swatch" Background="#FFFFFF" Command="{Binding SetFillCommand}" CommandParameter="#FFFFFF" ToolTip.Tip="Белый" />
+                    <Button Classes="swatch" Background="#F3F2F1" Command="{Binding SetFillCommand}" CommandParameter="#F3F2F1" ToolTip.Tip="Серый" />
+                    <Button Classes="swatch" Background="#201F1E" Command="{Binding SetFillCommand}" CommandParameter="#201F1E" ToolTip.Tip="Тёмный" />
+                    <Button Classes="swatch" Background="#118DFF" Command="{Binding SetFillCommand}" CommandParameter="#118DFF" ToolTip.Tip="Синий" />
+                    <Button Classes="swatch" Background="#12239E" Command="{Binding SetFillCommand}" CommandParameter="#12239E" ToolTip.Tip="Индиго" />
+                    <Button Classes="swatch" Background="#107C10" Command="{Binding SetFillCommand}" CommandParameter="#107C10" ToolTip.Tip="Зелёный" />
+                    <Button Classes="swatch" Background="#E6B000" Command="{Binding SetFillCommand}" CommandParameter="#E6B000" ToolTip.Tip="Жёлтый" />
+                    <Button Classes="swatch" Background="#E66C37" Command="{Binding SetFillCommand}" CommandParameter="#E66C37" ToolTip.Tip="Оранжевый" />
+                    <Button Classes="swatch" Background="#D64550" Command="{Binding SetFillCommand}" CommandParameter="#D64550" ToolTip.Tip="Красный" />
+                    <Button Classes="swatch" Background="#744EC2" Command="{Binding SetFillCommand}" CommandParameter="#744EC2" ToolTip.Tip="Фиолетовый" />
+                  </WrapPanel>
+                  <TextBlock Classes="caption" Text="Заливка (#RRGGBB или transparent)" />
+                  <TextBox Text="{Binding Fill}" Watermark="по умолчанию" />
+                  <Grid ColumnDefinitions="*,*" >
+                    <StackPanel Margin="0,0,6,0">
+                      <TextBlock Classes="caption" Text="Обводка" />
+                      <TextBox Text="{Binding Stroke}" Watermark="#C8C6C4" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                      <TextBlock Classes="caption" Text="Текст" />
+                      <TextBox Text="{Binding Foreground}" Watermark="#201F1E" />
+                    </StackPanel>
+                  </Grid>
+                  <TextBlock Classes="caption" Text="Толщина обводки" />
+                  <NumericUpDown Value="{Binding StrokeThickness, Converter={StaticResource DoubleDecimal}}" Minimum="0" Maximum="24" Increment="1" FormatString="0" />
+                  <TextBlock Classes="caption" Text="Скругление" />
+                  <NumericUpDown Value="{Binding CornerRadius, Converter={StaticResource DoubleDecimal}}" Minimum="0" Maximum="200" Increment="1" FormatString="0" />
+                  <TextBlock Classes="caption" Text="Внутренний отступ" />
+                  <NumericUpDown Value="{Binding Padding, Converter={StaticResource DoubleDecimal}}" Minimum="0" Maximum="80" Increment="1" FormatString="0" />
+                  <TextBlock Classes="caption" Text="Размер шрифта" />
+                  <NumericUpDown Value="{Binding FontSize, Converter={StaticResource DoubleDecimal}}" Minimum="8" Maximum="96" Increment="1" FormatString="0" />
+                  <CheckBox Content="Жирный" IsChecked="{Binding Bold}" FontSize="12" Margin="0,6,0,0" />
+                  <CheckBox Content="Показывать заголовок" IsChecked="{Binding ShowTitle}" FontSize="12" />
+                  <TextBlock Classes="caption" Text="Положение и размер" />
+                  <Grid ColumnDefinitions="*,*">
+                    <StackPanel Margin="0,0,6,0">
+                      <TextBlock Classes="hint" Text="X" />
+                      <NumericUpDown Value="{Binding X, Converter={StaticResource DoubleDecimal}}" Minimum="0" Maximum="8000" Increment="10" FormatString="0" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                      <TextBlock Classes="hint" Text="Y" />
+                      <NumericUpDown Value="{Binding Y, Converter={StaticResource DoubleDecimal}}" Minimum="0" Maximum="8000" Increment="10" FormatString="0" />
+                    </StackPanel>
+                  </Grid>
+                  <Grid ColumnDefinitions="*,*" Margin="0,4,0,0">
+                    <StackPanel Margin="0,0,6,0">
+                      <TextBlock Classes="hint" Text="Ширина" />
+                      <NumericUpDown Value="{Binding Width, Converter={StaticResource DoubleDecimal}}" Minimum="24" Maximum="4000" Increment="10" FormatString="0" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                      <TextBlock Classes="hint" Text="Высота" />
+                      <NumericUpDown Value="{Binding Height, Converter={StaticResource DoubleDecimal}}" Minimum="16" Maximum="4000" Increment="10" FormatString="0" />
+                    </StackPanel>
+                  </Grid>
+                  <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,8,0,0">
+                    <Button Classes="flat" Content="Влево" Command="{Binding Owner.AlignLeftCommand}" />
+                    <Button Classes="flat" Content="Вверх" Command="{Binding Owner.AlignTopCommand}" />
+                    <Button Classes="flat" Content="По центру" Command="{Binding Owner.AlignCenterCommand}" />
                   </StackPanel>
                 </StackPanel>
               </DataTemplate>
             </ContentControl.ContentTemplate>
           </ContentControl>
+
+          <!-- Страница -->
+          <Rectangle Height="1" Fill="{DynamicResource DividerBrush}" Margin="0,14,0,10" />
+          <TextBlock Classes="paneHeader" Text="Страница" />
+          <TextBlock Classes="caption" Text="Фон (#RRGGBB)" />
+          <TextBox Text="{Binding PageBackground}" Watermark="цвет темы" />
+          <WrapPanel Margin="0,4,0,0">
+            <Button Classes="swatch" Background="#FFFFFF" Command="{Binding SetPageBackgroundCommand}" CommandParameter="#FFFFFF" />
+            <Button Classes="swatch" Background="#F3F2F1" Command="{Binding SetPageBackgroundCommand}" CommandParameter="#F3F2F1" />
+            <Button Classes="swatch" Background="#E6F2FB" Command="{Binding SetPageBackgroundCommand}" CommandParameter="#E6F2FB" />
+            <Button Classes="swatch" Background="#FFF8E1" Command="{Binding SetPageBackgroundCommand}" CommandParameter="#FFF8E1" />
+            <Button Classes="swatch" Background="#252423" Command="{Binding SetPageBackgroundCommand}" CommandParameter="#252423" />
+            <Button Classes="swatch" Background="#0F2747" Command="{Binding SetPageBackgroundCommand}" CommandParameter="#0F2747" />
+          </WrapPanel>
+          <Grid ColumnDefinitions="*,*" Margin="0,6,0,0">
+            <StackPanel Margin="0,0,6,0">
+              <TextBlock Classes="caption" Text="Ширина" />
+              <NumericUpDown Value="{Binding PageWidth}" Minimum="640" Maximum="4000" Increment="20" FormatString="0" />
+            </StackPanel>
+            <StackPanel Grid.Column="1">
+              <TextBlock Classes="caption" Text="Высота" />
+              <NumericUpDown Value="{Binding PageHeight}" Minimum="480" Maximum="4000" Increment="20" FormatString="0" />
+            </StackPanel>
+          </Grid>
+          <Grid ColumnDefinitions="*,*" Margin="0,4,0,0">
+            <StackPanel Margin="0,0,6,0">
+              <TextBlock Classes="caption" Text="Поле" />
+              <NumericUpDown Value="{Binding Gap}" Minimum="0" Maximum="120" Increment="2" FormatString="0" />
+            </StackPanel>
+            <StackPanel Grid.Column="1">
+              <TextBlock Classes="caption" Text="Сетка" />
+              <NumericUpDown Value="{Binding GridStep}" Minimum="1" Maximum="80" Increment="1" FormatString="0" />
+            </StackPanel>
+          </Grid>
+          <TextBlock Classes="hint" Margin="0,4,0,0" Text="Поле — отступ от края. Сетка — шаг при перетаскивании." />
 
           <!-- Закладки -->
           <Rectangle Height="1" Fill="{DynamicResource DividerBrush}" Margin="0,14,0,10" />

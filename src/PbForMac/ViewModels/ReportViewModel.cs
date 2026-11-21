@@ -26,9 +26,6 @@ public sealed class VisualKindItem(VisualKind kind, string label, string iconPat
 /// <summary>Вкладка «Отчёт»: холст дашборда, визуалы, панель полей и фильтры страницы.</summary>
 public sealed partial class ReportViewModel : ViewModelBase
 {
-    private const double Margin = 20;
-    private const double Snap = 10;
-
     private readonly IDialogService _dialogs;
 
     public ReportViewModel(DataModel model, IDialogService dialogs, IRelayCommand importCommand, IRelayCommand importFolderCommand,
@@ -71,6 +68,12 @@ public sealed partial class ReportViewModel : ViewModelBase
                 "M3,4 H8 V9 H3 Z M10,5.5 H21 V7.5 H10 Z M3,10 H8 V15 H3 Z M10,11.5 H21 V13.5 H10 Z M3,16 H8 V21 H3 Z M10,17.5 H21 V19.5 H10 Z",
                 AddOrChangeVisual),
         ];
+        DesignKinds =
+        [
+            new(VisualKind.Shape, "Фигура", "M4,6 H20 V18 H4 Z", AddOrChangeVisual),
+            new(VisualKind.Text, "Текст", "M4,6 H20 M4,12 H16 M4,18 H18", AddOrChangeVisual),
+            new(VisualKind.Button, "Кнопка", "M4,8 H20 V16 H4 Z M8,12 H16", AddOrChangeVisual),
+        ];
         EnsureDefaultPage();
     }
 
@@ -82,6 +85,10 @@ public sealed partial class ReportViewModel : ViewModelBase
     public IRelayCommand ImportFolderCommand { get; }
     public IRelayCommand OpenSampleCommand { get; }
     public IReadOnlyList<VisualKindItem> VisualKinds { get; }
+    public IReadOnlyList<VisualKindItem> DesignKinds { get; }
+
+    /// <summary>Шаг сетки текущей страницы, px.</summary>
+    public double SnapStep => GridStep < 1 ? 1 : (double)GridStep;
     public ObservableCollection<VisualViewModel> Visuals { get; } = [];
     public ObservableCollection<string> TableNames { get; } = [];
     public ObservableCollection<FieldTableNode> FieldTables { get; } = [];
@@ -115,6 +122,24 @@ public sealed partial class ReportViewModel : ViewModelBase
 
     [ObservableProperty]
     private double _boardHeight = 760;
+
+    [ObservableProperty]
+    private string? _pageBackground;
+
+    [ObservableProperty]
+    private decimal _pageWidth = 1280;
+
+    [ObservableProperty]
+    private decimal _pageHeight = 760;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SnapStep))]
+    private decimal _gridStep = 10;
+
+    [ObservableProperty]
+    private decimal _gap = 20;
+
+    private bool _syncPage;
 
     /// <summary>Масштаб холста; при <see cref="FitToWidth"/> подбирается представлением.</summary>
     [ObservableProperty]
@@ -277,22 +302,9 @@ public sealed partial class ReportViewModel : ViewModelBase
 
     public void Duplicate(VisualViewModel visual)
     {
-        var source = visual.Definition;
-        var copy = new VisualDefinition
-        {
-            Kind = source.Kind,
-            Title = source.Title,
-            Table = source.Table,
-            CategoryField = source.CategoryField,
-            ValueFields = [.. source.ValueFields],
-            Aggregation = source.Aggregation,
-            DateGranularity = source.DateGranularity,
-            TopN = source.TopN,
-            ShowLegend = source.ShowLegend,
-            ShowDataLabels = source.ShowDataLabels,
-            Width = source.Width,
-            Height = source.Height,
-        };
+        var copy = visual.Definition.Clone();
+        copy.Id = Guid.NewGuid().ToString("N");
+        copy.SelectedValues = [];
         (copy.X, copy.Y) = FindFreeSpot(copy.Width, copy.Height);
         SelectedVisual = AddVisual(copy);
     }
@@ -300,7 +312,8 @@ public sealed partial class ReportViewModel : ViewModelBase
     /// <summary>Клик по типу визуала: меняет тип выбранного визуала или добавляет новый.</summary>
     private void AddOrChangeVisual(VisualKind kind)
     {
-        if (SelectedVisual is { } selected)
+        var design = IsDesignKind(kind);
+        if (!design && SelectedVisual is { } selected && !selected.IsDesign)
         {
             if (selected.Kind != kind)
                 ChangeKind(selected, kind);
@@ -310,8 +323,52 @@ public sealed partial class ReportViewModel : ViewModelBase
         var definition = new VisualDefinition { Kind = kind };
         (definition.Width, definition.Height) = DefaultSize(kind);
         (definition.X, definition.Y) = FindFreeSpot(definition.Width, definition.Height);
-        AutoFill(definition, Model.GetTable(FilterTable) ?? Model.Tables.FirstOrDefault());
+        if (design)
+            ApplyDesignDefaults(definition);
+        else
+            AutoFill(definition, Model.GetTable(FilterTable) ?? Model.Tables.FirstOrDefault());
         SelectedVisual = AddVisual(definition);
+    }
+
+    private static bool IsDesignKind(VisualKind kind) =>
+        kind is VisualKind.Shape or VisualKind.Text or VisualKind.Button;
+
+    private static void ApplyDesignDefaults(VisualDefinition definition)
+    {
+        definition.ShowTitle = false;
+        definition.Table = null;
+        definition.FontSize = 16;
+        definition.Padding = 8;
+        switch (definition.Kind)
+        {
+            case VisualKind.Shape:
+                definition.Shape = ShapeKind.Rounded;
+                definition.Fill = "#F3F2F1";
+                definition.Stroke = "#C8C6C4";
+                definition.StrokeThickness = 1;
+                definition.CornerRadius = 12;
+                break;
+            case VisualKind.Button:
+                definition.Fill = "#118DFF";
+                definition.Stroke = "#0F6CBD";
+                definition.StrokeThickness = 1;
+                definition.CornerRadius = 6;
+                definition.Foreground = "#FFFFFF";
+                definition.Text = "Кнопка";
+                definition.Bold = true;
+                definition.Align = DesignAlign.Center;
+                definition.FontSize = 14;
+                break;
+            case VisualKind.Text:
+                definition.Fill = "transparent";
+                definition.StrokeThickness = 0;
+                definition.Foreground = "#201F1E";
+                definition.Text = "Заголовок";
+                definition.FontSize = 28;
+                definition.Bold = true;
+                definition.Padding = 4;
+                break;
+        }
     }
 
     private void ChangeKind(VisualViewModel visual, VisualKind kind)
@@ -349,6 +406,7 @@ public sealed partial class ReportViewModel : ViewModelBase
         VisualKind.Table => new TableVisualViewModel(definition, this),
         VisualKind.Matrix => new MatrixVisualViewModel(definition, this),
         VisualKind.Slicer => new SlicerVisualViewModel(definition, this),
+        VisualKind.Shape or VisualKind.Text or VisualKind.Button => new DesignVisualViewModel(definition, this),
         _ => new ChartVisualViewModel(definition, this),
     };
 
@@ -359,11 +417,100 @@ public sealed partial class ReportViewModel : ViewModelBase
             UpdateBoardSize();
     }
 
-    /// <summary>Холст растёт вслед за визуалами, но не меньше базового размера страницы.</summary>
+    /// <summary>Холст растёт вслед за визуалами, но не меньше размера страницы.</summary>
     private void UpdateBoardSize()
     {
-        BoardWidth = Math.Max(1280, Visuals.Select(v => v.X + v.Width + Margin).DefaultIfEmpty(0).Max());
-        BoardHeight = Math.Max(760, Visuals.Select(v => v.Y + v.Height + Margin).DefaultIfEmpty(0).Max());
+        var gap = (double)Gap;
+        var width = PageWidth < 320 ? 1280 : (double)PageWidth;
+        var height = PageHeight < 240 ? 760 : (double)PageHeight;
+        BoardWidth = Math.Max(width, Visuals.Select(v => v.X + v.Width + gap).DefaultIfEmpty(0).Max());
+        BoardHeight = Math.Max(height, Visuals.Select(v => v.Y + v.Height + gap).DefaultIfEmpty(0).Max());
+    }
+
+    partial void OnPageBackgroundChanged(string? value)
+    {
+        if (!_syncPage && SelectedPage is not null)
+            SelectedPage.Background = value;
+    }
+
+    partial void OnPageWidthChanged(decimal value)
+    {
+        if (!_syncPage && SelectedPage is not null)
+            SelectedPage.CanvasWidth = (double)value;
+        UpdateBoardSize();
+    }
+
+    partial void OnPageHeightChanged(decimal value)
+    {
+        if (!_syncPage && SelectedPage is not null)
+            SelectedPage.CanvasHeight = (double)value;
+        UpdateBoardSize();
+    }
+
+    partial void OnGridStepChanged(decimal value)
+    {
+        if (!_syncPage && SelectedPage is not null)
+            SelectedPage.GridStep = (double)value;
+    }
+
+    partial void OnGapChanged(decimal value)
+    {
+        if (!_syncPage && SelectedPage is not null)
+            SelectedPage.Gap = (double)value;
+        UpdateBoardSize();
+    }
+
+    private void LoadPageChrome(ReportPageItem page)
+    {
+        _syncPage = true;
+        PageBackground = page.Background;
+        PageWidth = page.CanvasWidth <= 0 ? 1280 : (decimal)page.CanvasWidth;
+        PageHeight = page.CanvasHeight <= 0 ? 760 : (decimal)page.CanvasHeight;
+        GridStep = page.GridStep <= 0 ? 10 : (decimal)page.GridStep;
+        Gap = page.Gap <= 0 ? 20 : (decimal)page.Gap;
+        _syncPage = false;
+        UpdateBoardSize();
+    }
+
+    public void GoToPage(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return;
+        var page = Pages.FirstOrDefault(p => string.Equals(p.Name, name.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (page is not null)
+            SelectPage(page);
+    }
+
+    public void ApplyBookmarkByName(string? name)
+    {
+        var item = Bookmarks.FirstOrDefault(b => string.Equals(b.Name, name?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (item is not null)
+            ApplyBookmark(item);
+    }
+
+    [RelayCommand]
+    private void SetPageBackground(string? hex) =>
+        PageBackground = string.IsNullOrWhiteSpace(hex) ? null : hex;
+
+    [RelayCommand]
+    private void AlignLeft()
+    {
+        if (SelectedVisual is { } visual)
+            visual.X = (double)Gap;
+    }
+
+    [RelayCommand]
+    private void AlignTop()
+    {
+        if (SelectedVisual is { } visual)
+            visual.Y = (double)Gap;
+    }
+
+    [RelayCommand]
+    private void AlignCenter()
+    {
+        if (SelectedVisual is { } visual)
+            visual.X = Math.Max(0, ((double)PageWidth - visual.Width) / 2);
     }
 
     private static (double Width, double Height) DefaultSize(VisualKind kind) => kind switch
@@ -371,30 +518,35 @@ public sealed partial class ReportViewModel : ViewModelBase
         VisualKind.Card => (240, 140),
         VisualKind.Slicer => (240, 300),
         VisualKind.Table or VisualKind.Matrix => (500, 300),
+        VisualKind.Shape => (200, 120),
+        VisualKind.Text => (320, 72),
+        VisualKind.Button => (180, 48),
         _ => (460, 300),
     };
 
     /// <summary>Ищет свободное место слева направо, сверху вниз.</summary>
     private (double X, double Y) FindFreeSpot(double width, double height)
     {
-        for (var y = Margin; y < 10000; y += Snap)
+        var gap = (double)Gap;
+        var step = SnapStep;
+        for (var y = gap; y < 10000; y += step)
         {
-            for (var x = Margin; x + width <= Math.Max(BoardWidth, 1280) - Margin; x += Snap)
+            for (var x = gap; x + width <= Math.Max(BoardWidth, (double)PageWidth) - gap; x += step)
             {
                 var overlaps = Visuals.Any(v =>
-                    x < v.X + v.Width + Snap && x + width + Snap > v.X &&
-                    y < v.Y + v.Height + Snap && y + height + Snap > v.Y);
+                    x < v.X + v.Width + step && x + width + step > v.X &&
+                    y < v.Y + v.Height + step && y + height + step > v.Y);
                 if (!overlaps)
                     return (x, y);
             }
         }
-        return (Margin, BoardHeight);
+        return (gap, BoardHeight);
     }
 
     /// <summary>Подбирает поля для нового визуала, чтобы он сразу что-то показывал.</summary>
     private static void AutoFill(VisualDefinition definition, DataTable? table, bool keepTable = false)
     {
-        if (table is null)
+        if (table is null || definition.Kind is VisualKind.Shape or VisualKind.Text or VisualKind.Button)
             return;
         if (!keepTable || definition.Table is null)
             definition.Table = table.TableName;
@@ -502,6 +654,11 @@ public sealed partial class ReportViewModel : ViewModelBase
             Name = p.Name,
             Visuals = p.Visuals.Select(CloneVisual).ToList(),
             Filters = p.Filters.Select(CloneFilter).ToList(),
+            Background = p.Background,
+            CanvasWidth = p.CanvasWidth,
+            CanvasHeight = p.CanvasHeight,
+            GridStep = p.GridStep,
+            Gap = p.Gap,
         }).ToList();
     }
 
@@ -545,6 +702,11 @@ public sealed partial class ReportViewModel : ViewModelBase
             {
                 Visuals = page.Visuals.Select(CloneVisual).ToList(),
                 Filters = page.Filters.Select(CloneFilter).ToList(),
+                Background = page.Background,
+                CanvasWidth = page.CanvasWidth <= 0 ? 1280 : page.CanvasWidth,
+                CanvasHeight = page.CanvasHeight <= 0 ? 760 : page.CanvasHeight,
+                GridStep = page.GridStep <= 0 ? 10 : page.GridStep,
+                Gap = page.Gap <= 0 ? 20 : page.Gap,
             });
         }
 
@@ -559,6 +721,7 @@ public sealed partial class ReportViewModel : ViewModelBase
         Pages.Add(page);
         SelectedPage = page;
         page.IsSelected = true;
+        LoadPageChrome(page);
     }
 
     private void FlushSelectedPage()
@@ -602,7 +765,7 @@ public sealed partial class ReportViewModel : ViewModelBase
         }
         foreach (var visual in Visuals)
             visual.OnModelChanged();
-        UpdateBoardSize();
+        LoadPageChrome(page);
     }
 
     [RelayCommand]
@@ -643,7 +806,7 @@ public sealed partial class ReportViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void ResetSlicers()
+    public void ResetSlicers()
     {
         foreach (var page in Pages)
         {
@@ -736,26 +899,7 @@ public sealed partial class ReportViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasBookmarks));
     }
 
-    private static VisualDefinition CloneVisual(VisualDefinition v) => new()
-    {
-        Id = v.Id,
-        Kind = v.Kind,
-        Title = v.Title,
-        Table = v.Table,
-        CategoryField = v.CategoryField,
-        ColumnField = v.ColumnField,
-        ValueFields = [..v.ValueFields],
-        Aggregation = v.Aggregation,
-        DateGranularity = v.DateGranularity,
-        TopN = v.TopN,
-        ShowLegend = v.ShowLegend,
-        ShowDataLabels = v.ShowDataLabels,
-        SelectedValues = [..v.SelectedValues],
-        X = v.X,
-        Y = v.Y,
-        Width = v.Width,
-        Height = v.Height,
-    };
+    private static VisualDefinition CloneVisual(VisualDefinition v) => v.Clone();
 
     private static FilterDefinition CloneFilter(FilterDefinition f) => new()
     {
