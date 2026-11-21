@@ -204,9 +204,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     {
         if (Directory.Exists(path))
             return ImportFolderPathAsync(path);
-        return path.EndsWith(ReportSerializer.Extension, StringComparison.OrdinalIgnoreCase)
-            ? OpenReportFileAsync(path)
-            : ImportFileAsync(path);
+        if (path.EndsWith(ReportSerializer.Extension, StringComparison.OrdinalIgnoreCase)
+            || path.EndsWith(".pbip", StringComparison.OrdinalIgnoreCase)
+            || path.EndsWith(".pbix", StringComparison.OrdinalIgnoreCase))
+            return OpenReportFileAsync(path);
+        return ImportFileAsync(path);
     }
 
     /// <summary>
@@ -437,7 +439,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     {
         // Открыть можно и отчёт, и файлы данных; папки — через «Получить данные → Папка…».
         var paths = await _dialogs.OpenFilesAsync("Открыть отчёт или данные",
-            [new FileTypeFilter("Отчёты и данные", [ReportSerializer.Extension, .. ImporterFactory.SupportedExtensions]), ReportFilter, .. DataFilters],
+            [
+                new FileTypeFilter("Отчёты и данные", [ReportSerializer.Extension, ".pbip", ".pbix", .. ImporterFactory.SupportedExtensions]),
+                ReportFilter,
+                new FileTypeFilter("Проект Power BI", [".pbip"]),
+                new FileTypeFilter("Файл Power BI", [".pbix"]),
+                .. DataFilters,
+            ],
             allowMultiple: true);
         foreach (var path in paths)
             await OpenPathAsync(path);
@@ -460,7 +468,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         {
             IsBusy = true;
             Status = $"Открытие {Path.GetFileName(path)}…";
-            var report = ReportSerializer.Load(path);
+            string? warning = null;
+            ReportDefinition report;
+            if (path.EndsWith(".pbip", StringComparison.OrdinalIgnoreCase))
+                report = PbipExchange.Load(path, out warning);
+            else if (path.EndsWith(".pbix", StringComparison.OrdinalIgnoreCase))
+                report = PbixExchange.Load(path, out warning);
+            else
+                report = ReportSerializer.Load(path);
             Report.Clear();
             var errors = Model.Load(report.Sources, report.Steps, report.Relationships, report.TableLayouts, report.Measures);
             Report.LoadPages(report.Pages);
@@ -468,6 +483,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             ReportPath = path;
             CurrentPage = Report;
             Status = $"Открыт отчёт: {Path.GetFileName(path)}";
+            if (warning is not null)
+                await _dialogs.ShowMessageAsync("Power BI", warning);
             if (errors.Count > 0)
                 await _dialogs.ShowMessageAsync("Не все источники загружены", string.Join("\n", errors));
         }
@@ -499,22 +516,49 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             await SaveToAsync(path);
     }
 
+    [RelayCommand]
+    private async Task SavePowerBiAsync()
+    {
+        var suggested = Path.GetFileNameWithoutExtension(ReportPath ?? "Отчёт") + ".pbip";
+        var path = await _dialogs.SaveFileAsync("Проект Power BI", suggested, new FileTypeFilter("Проект Power BI", [".pbip"]));
+        if (path is null)
+            return;
+        if (!path.EndsWith(".pbip", StringComparison.OrdinalIgnoreCase))
+            path += ".pbip";
+        await SaveToAsync(path);
+        await _dialogs.ShowMessageAsync("Проект Power BI",
+            "Откройте файл .pbip в Power BI Desktop.\n" +
+            "Таблицы лежат в CSV рядом с проектом: Power Query читает их по пути этого компьютера.\n" +
+            "Фигуры и кнопки в Desktop станут текстовыми блоками. PbForMac откроет этот же .pbip целиком.\n" +
+            "Обычный .pbix отсюда не записывается: внутри у него закрытая модель данных. " +
+            "Чужой .pbix можно открыть — подтянутся страницы и визуалы, без таблиц.");
+    }
+
+    private ReportDefinition Snapshot() => new()
+    {
+        Sources = Model.Sources,
+        Steps = Model.Steps,
+        Relationships = Model.Relationships,
+        TableLayouts = Model.TableLayouts,
+        Pages = Report.GetPages(),
+        Bookmarks = Report.GetBookmarks(),
+        Measures = Model.Measures.Select(CloneMeasure).ToList(),
+    };
+
     private async Task SaveToAsync(string path)
     {
         try
         {
+            if (path.EndsWith(".pbip", StringComparison.OrdinalIgnoreCase))
+            {
+                PbipExchange.Save(Snapshot(), Model.Tables, path);
+                ReportPath = Path.GetFullPath(path);
+                Status = $"Сохранён проект Power BI: {ReportPath}";
+                return;
+            }
             if (!path.EndsWith(ReportSerializer.Extension, StringComparison.OrdinalIgnoreCase))
                 path += ReportSerializer.Extension;
-            ReportSerializer.Save(new ReportDefinition
-            {
-                Sources = Model.Sources,
-                Steps = Model.Steps,
-                Relationships = Model.Relationships,
-                TableLayouts = Model.TableLayouts,
-                Pages = Report.GetPages(),
-                Bookmarks = Report.GetBookmarks(),
-                Measures = Model.Measures.Select(CloneMeasure).ToList(),
-            }, path);
+            ReportSerializer.Save(Snapshot(), path);
             ReportPath = path;
             Status = $"Сохранено: {path}";
         }

@@ -22,6 +22,7 @@
           <NativeMenuItemSeparator />
           <NativeMenuItem Header="Сохранить" Command="{Binding SaveReportCommand}" Gesture="Meta+S" />
           <NativeMenuItem Header="Сохранить как…" Command="{Binding SaveReportAsCommand}" Gesture="Meta+Shift+S" />
+          <NativeMenuItem Header="Сохранить как проект Power BI…" Command="{Binding SavePowerBiCommand}" />
         </NativeMenu>
       </NativeMenuItem>
       <NativeMenuItem Header="Данные">
@@ -95,7 +96,7 @@
           <Button Classes="tool" Command="{Binding NewReportCommand}" ToolTip.Tip="Новый отчёт">
             <StackPanel><PathIcon Data="{StaticResource IconNew}" /><TextBlock Text="Новый" /></StackPanel>
           </Button>
-          <Button Classes="tool" Command="{Binding OpenReportCommand}" ToolTip.Tip="Открыть отчёт (.pbm) или файлы данных">
+          <Button Classes="tool" Command="{Binding OpenReportCommand}" ToolTip.Tip="Открыть .pbm, проект Power BI (.pbip) или .pbix">
             <StackPanel><PathIcon Data="{StaticResource IconOpen}" /><TextBlock Text="Открыть" /></StackPanel>
           </Button>
           <SplitButton Command="{Binding SaveReportCommand}" Padding="8,4" Background="Transparent" BorderThickness="0">
@@ -106,6 +107,7 @@
             <SplitButton.Flyout>
               <MenuFlyout>
                 <MenuItem Header="Сохранить как…" Command="{Binding SaveReportAsCommand}" />
+                <MenuItem Header="Сохранить как проект Power BI…" Command="{Binding SavePowerBiCommand}" />
               </MenuFlyout>
             </SplitButton.Flyout>
           </SplitButton>
